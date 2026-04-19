@@ -1,0 +1,23 @@
+{
+  "active_plan": "/mnt/d/files/project/model-lite-repository/.sisyphus/plans/architecture-design.md",
+  "started_at": "2026-04-19T13:00:10.021Z",
+  "session_ids": [
+    "ses_25a767fdfffeoBlylcfKpyPdyi"
+  ],
+  "session_origins": {
+    "ses_25a767fdfffeoBlylcfKpyPdyi": "direct"
+  },
+  "plan_name": "architecture-design",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "创建文档骨架",
+      "session_id": "ses_25a2a5ce2ffeyqcuBy05vMbbQj",
+      "agent": "Sisyphus-Junior",
+      "category": "writing",
+      "updated_at": "2026-04-19T13:10:19.060Z"
+    }
+  }
+}
