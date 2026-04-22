@@ -1,2 +1,4 @@
 tmp/
 sessions/
+.agents/
+skills-lock.json
