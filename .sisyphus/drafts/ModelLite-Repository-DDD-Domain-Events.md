@@ -1,7 +1,7 @@
 # ModelLite 模型仓库 - 领域事件风暴（Domain Event Storming）
 
 > **文档类型**: DDD 领域事件清单  
-> **文档版本**: v1.3  
+> **文档版本**: v1.4  
 > **编写日期**: 2026-04-21  
 > **适用范围**: ModelLite 平台模型仓库模块 DDD 架构设计  
 > **目标读者**: 架构师、领域专家、后端开发工程师
@@ -63,9 +63,6 @@
 业务价值: 
   - 记录操作日志
   - 触发首个版本的初始化流程
-消费方:
-  - AuditLogHandler (审计日志)
-  - NotificationHandler (通知)
 ```
 
 #### ModelModifiedEvent - 模型已修改
@@ -81,9 +78,6 @@
 业务价值:
   - 记录变更历史
   - 触发关联更新（如分类变更后的索引更新）
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler (搜索索引更新)
 ```
 
 #### ModelSoftDeletedEvent - 模型已软删除
@@ -100,10 +94,6 @@
   - 记录删除操作
   - 触发回收站管理
   - 清理相关资源
-消费方:
-  - AuditLogHandler
-  - RecycleBinHandler
-  - ResourceCleanupHandler
 ```
 
 #### ModelHardDeletedEvent - 模型已硬删除
@@ -119,10 +109,6 @@
 业务价值:
   - 彻底清理存储资源
   - 记录审计日志
-消费方:
-  - AuditLogHandler
-  - FileCleanupHandler (文件清理)
-  - SearchIndexHandler (索引清理)
 ```
 
 #### ModelRestoredEvent - 模型已恢复
@@ -138,10 +124,6 @@
 业务价值:
   - 恢复业务数据
   - 记录恢复操作
-消费方:
-  - AuditLogHandler
-  - RecycleBinHandler
-  - SearchIndexHandler
 ```
 
 ### 2.2 版本生命周期事件
@@ -161,8 +143,6 @@
 业务价值:
   - 触发权重上传流程
   - 记录版本创建
-消费方:
-  - AuditLogHandler
   - WeightUploadHandler
 ```
 
@@ -181,9 +161,6 @@
 业务价值:
   - 状态机审计
   - 触发状态相关的后续操作
-消费方:
-  - AuditLogHandler
-  - StatusNotificationHandler
 ```
 
 #### VersionSoftDeletedEvent - 版本已软删除
@@ -199,9 +176,6 @@
 业务价值:
   - 记录版本删除
   - 触发版本级回收站管理
-消费方:
-  - AuditLogHandler
-  - RecycleBinHandler
 ```
 
 #### VersionHardDeletedEvent - 版本已硬删除
@@ -219,9 +193,6 @@
 业务价值:
   - 清理存储资源
   - 记录彻底删除操作
-消费方:
-  - AuditLogHandler
-  - FileCleanupHandler
 ```
 
 #### VersionRestoredEvent - 版本已恢复
@@ -237,9 +208,6 @@
 业务价值:
   - 恢复版本数据
   - 记录恢复操作
-消费方:
-  - AuditLogHandler
-  - RecycleBinHandler
 ```
 
 ### 2.3 版本锁定事件
@@ -258,9 +226,6 @@
 业务价值:
   - 记录锁定操作
   - 防止版本被删除
-消费方:
-  - AuditLogHandler
-  - LockMonitoringHandler
 ```
 
 #### VersionUnlockedEvent - 版本已解锁
@@ -276,9 +241,6 @@
 业务价值:
   - 记录解锁操作
   - 当剩余锁为0时，版本可删除
-消费方:
-  - AuditLogHandler
-  - LockMonitoringHandler
 ```
 
 #### VersionLockRenewedEvent - 版本锁已续约
@@ -297,9 +259,6 @@
   - 记录锁续约操作
   - 追踪长时间运行的任务
   - 监控续约频率（异常频繁的续约可能表示问题）
-消费方:
-  - AuditLogHandler
-  - LockMonitoringHandler
 ```
 
 #### VersionLockRenewalFailedEvent - 版本锁续约已失败
@@ -318,9 +277,6 @@
 业务价值:
   - 记录续约失败
   - 触发告警（任务可能因锁过期而被中断）
-消费方:
-  - AuditLogHandler
-  - AlertHandler (告警)
 ```
 
 #### VersionLockExpiredEvent - 版本锁已过期
@@ -339,9 +295,6 @@
   - 防止僵尸锁
   - 记录异常解锁（调用方未正常解锁或续约）
   - 分析锁过期原因（任务异常退出 vs 正常完成未解锁）
-消费方:
-  - AuditLogHandler
-  - AlertHandler (告警)
 ```
 
 #### VersionLockExpiringSoonEvent - 版本锁即将过期
@@ -358,9 +311,6 @@
 业务价值:
   - 提前预警，给任务方预留续约时间
   - 防止因疏忽导致锁过期
-消费方:
-  - AlertHandler (告警通知)
-  - NotificationHandler (通知任务方)
 ```
 
 ---
@@ -381,10 +331,6 @@
   registerTime: DateTime # 纳管时间
 业务价值:
   - 触发权重校验
-消费方:
-  - AuditLogHandler
-  - WeightValidationHandler
-  - WeightTypeRecognitionHandler
 ```
 
 #### WeightUploadStartedEvent - 权重上传已开始
@@ -403,9 +349,6 @@
 业务价值:
   - 记录上传开始
   - 版本状态变更为上传中
-消费方:
-  - AuditLogHandler
-  - TaskMonitoringHandler
 ```
 
 #### WeightUploadCompletedEvent - 权重上传已完成
@@ -421,11 +364,6 @@
 业务价值:
   - 触发权重校验和类型识别
   - 更新版本状态为可用
-消费方:
-  - AuditLogHandler
-  - WeightValidationHandler
-  - WeightTypeRecognitionHandler
-  - VersionStatusHandler
 ```
 
 #### WeightUploadFailedEvent - 权重上传已失败
@@ -443,10 +381,6 @@
   - 记录失败原因
   - 更新版本状态为上传失败
   - 触发告警
-消费方:
-  - AuditLogHandler
-  - VersionStatusHandler
-  - AlertHandler
 ```
 
 ### 3.2 权重校验事件
@@ -461,8 +395,6 @@
   startTime: DateTime    # 开始时间
 业务价值:
   - 记录校验开始
-消费方:
-  - AuditLogHandler
 ```
 
 #### WeightValidationCompletedEvent - 权重校验已完成
@@ -477,9 +409,6 @@
 业务价值:
   - 更新版本校验状态
   - 如失败，标记版本为校验失败
-消费方:
-  - AuditLogHandler
-  - VersionStatusHandler
 ```
 
 #### WeightTypeRecognizedEvent - 权重类型已识别
@@ -493,9 +422,6 @@
 业务价值:
   - 更新版本权重类型
   - 展示给用户
-消费方:
-  - AuditLogHandler
-  - VersionMetadataHandler
 ```
 
 #### WeightTypeRecognitionFailedEvent - 权重类型识别已失败
@@ -509,10 +435,6 @@
 业务价值:
   - 记录识别失败
   - 标记版本为异常状态
-消费方:
-  - AuditLogHandler
-  - VersionStatusHandler
-  - AlertHandler
 ```
 
 ### 3.3 权重归档事件
@@ -536,9 +458,6 @@
 业务价值:
   - 记录训练产出
   - 触发权重校验
-消费方:
-  - AuditLogHandler
-  - WeightValidationHandler
 ```
 
 ### 3.4 权重转换事件
@@ -559,9 +478,6 @@
 业务价值:
   - 记录转换开始
   - 源版本已自动锁定
-消费方:
-  - AuditLogHandler
-  - TaskMonitoringHandler
 ```
 
 #### WeightConversionCompletedEvent - 权重转换已完成
@@ -578,11 +494,6 @@
   - 解锁源版本
   - 更新目标版本状态为可用
   - 触发目标版本校验
-消费方:
-  - AuditLogHandler
-  - VersionUnlockHandler
-  - VersionStatusHandler
-  - WeightValidationHandler
 ```
 
 #### WeightConversionFailedEvent - 权重转换已失败
@@ -599,10 +510,6 @@
 业务价值:
   - 解锁源版本
   - 记录失败原因
-消费方:
-  - AuditLogHandler
-  - VersionUnlockHandler
-  - AlertHandler
 ```
 
 ---
@@ -626,8 +533,6 @@
   createTime: DateTime   # 创建时间
 业务价值:
   - 记录任务创建
-消费方:
-  - AuditLogHandler
 ```
 
 #### UploadTaskPausedEvent - 上传任务已暂停
@@ -640,8 +545,6 @@
   currentProgress: Integer # 当前进度
 业务价值:
   - 记录暂停操作
-消费方:
-  - AuditLogHandler
 ```
 
 #### UploadTaskResumedEvent - 上传任务已恢复
@@ -653,8 +556,6 @@
   resumeTime: DateTime   # 恢复时间
 业务价值:
   - 记录恢复操作
-消费方:
-  - AuditLogHandler
 ```
 
 #### UploadTaskCancelledEvent - 上传任务已取消
@@ -668,9 +569,6 @@
 业务价值:
   - 记录取消操作
   - 触发版本状态更新
-消费方:
-  - AuditLogHandler
-  - VersionStatusHandler
 ```
 
 #### UploadTaskDeletedEvent - 上传任务已删除
@@ -683,8 +581,6 @@
 业务价值:
   - 记录任务删除
   - 清理任务相关资源
-消费方:
-  - AuditLogHandler
 ```
 
 ### 4.2 转换任务事件
@@ -704,8 +600,6 @@
   createTime: DateTime   # 创建时间
 业务价值:
   - 记录任务创建
-消费方:
-  - AuditLogHandler
 ```
 
 #### ConvertTaskDeletedEvent - 转换任务已删除
@@ -717,8 +611,6 @@
   deleteTime: DateTime   # 删除时间
 业务价值:
   - 记录任务删除
-消费方:
-  - AuditLogHandler
 ```
 
 ---
@@ -740,9 +632,6 @@
   createTime: DateTime   # 创建时间
 业务价值:
   - 记录分类创建
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 ```
 
 #### CategoryDeletedEvent - 分类已删除
@@ -756,9 +645,6 @@
   deleteTime: DateTime   # 删除时间
 业务价值:
   - 记录分类删除
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 ```
 
 ### 5.2 类型管理事件
@@ -777,9 +663,6 @@
   createTime: DateTime   # 创建时间
 业务价值:
   - 记录类型创建
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 备注:
   - 模型类型的能力（如 supportFinetune）通过 Tag 聚合关联表达，不再作为 ModelType 的字段
 ```
@@ -796,9 +679,6 @@
   deleteTime: DateTime   # 删除时间
 业务价值:
   - 记录类型删除
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 ```
 
 ---
@@ -822,8 +702,6 @@
 业务价值:
   - 记录标签创建
   - 区分用户标签和能力标签
-消费方:
-  - AuditLogHandler
 ```
 
 #### TagDeletedEvent - 标签已删除
@@ -838,8 +716,6 @@
   deleteTime: DateTime   # 删除时间
 业务价值:
   - 记录标签删除
-消费方:
-  - AuditLogHandler
 约束:
   - 内置标签（isBuiltIn=true）不允许删除
 ```
@@ -856,9 +732,6 @@
   addTime: DateTime      # 添加时间
 业务价值:
   - 记录标签关联
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 ```
 
 #### TagRemovedFromModelEvent - 标签已从模型移除
@@ -873,9 +746,6 @@
   removeTime: DateTime   # 移除时间
 业务价值:
   - 记录标签解除关联
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 ```
 
 #### TagAddedToModelTypeEvent - 标签已添加到模型类型
@@ -892,9 +762,6 @@
 业务价值:
   - 记录模型类型的能力标签关联
   - 替代原 ModelType.supportFinetune 字段，支持更灵活的能力扩展
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 示例:
   - 为 glm-5 类型添加 supportFinetune 标签
   - 未来可扩展 supportQuantization、supportInference 等能力标签
@@ -913,9 +780,6 @@
   removeTime: DateTime   # 移除时间
 业务价值:
   - 记录模型类型能力标签的解除关联
-消费方:
-  - AuditLogHandler
-  - SearchIndexHandler
 ```
 
 ---
@@ -934,9 +798,6 @@
   moveTime: DateTime     # 移入时间
 业务价值:
   - 记录回收站操作
-消费方:
-  - AuditLogHandler
-  - RecycleBinHandler
 ```
 
 #### VersionMovedToRecycleBinEvent - 版本已移至回收站
@@ -951,9 +812,6 @@
   moveTime: DateTime     # 移入时间
 业务价值:
   - 记录回收站操作
-消费方:
-  - AuditLogHandler
-  - RecycleBinHandler
 ```
 
 ---
@@ -971,9 +829,6 @@
 业务价值:
   - 记录僵尸锁清理
   - 发现异常（调用方未正常解锁或续约）
-消费方:
-  - AuditLogHandler
-  - AlertHandler
 ```
 
 #### LockRenewalPatternAnomalyDetectedEvent - 锁续约模式异常已检测到
@@ -993,9 +848,6 @@
 业务价值:
   - 发现潜在的任务异常
   - 提前预警可能的锁过期风险
-消费方:
-  - AlertHandler (告警)
-  - NotificationHandler (通知任务方)
 ```
 
 #### ResourceGroupVisibilityChangedEvent - 资源组可见性已变更
@@ -1010,9 +862,6 @@
   changeTime: DateTime   # 变更时间
 业务价值:
   - 记录权限变更
-消费方:
-  - AuditLogHandler
-  - PermissionHandler
 ```
 
 ---
@@ -1183,154 +1032,9 @@
 
 ---
 
-## 11. 事件处理器映射
+## 11. 事件存储与追溯
 
-### 11.1 审计日志处理器 (AuditLogHandler)
-
-**订阅事件**: 所有事件
-
-**职责**:
-- 将所有领域事件翻译为操作日志格式
-- 上报到平台统一日志服务
-- 记录操作者、操作时间、操作结果
-
-### 11.2 版本状态处理器 (VersionStatusHandler)
-
-**订阅事件**:
-- WeightUploadCompletedEvent
-- WeightUploadFailedEvent
-- WeightValidationCompletedEvent
-- WeightTypeRecognitionFailedEvent
-- WeightConversionCompletedEvent
-- WeightConversionFailedEvent
-- UploadTaskCancelledEvent
-
-**职责**:
-- 根据业务事件更新版本状态
-- 状态流转控制
-
-### 11.3 权重校验处理器 (WeightValidationHandler)
-
-**订阅事件**:
-- WeightRegisteredEvent
-- WeightUploadCompletedEvent
-- TrainingWeightArchivedEvent
-- WeightConversionCompletedEvent
-
-**职责**:
-- 触发权重完整性校验
-- 触发权重类型识别
-
-### 11.4 权重类型识别处理器 (WeightTypeRecognitionHandler)
-
-**订阅事件**:
-- WeightRegisteredEvent
-- WeightUploadCompletedEvent
-- TrainingWeightArchivedEvent
-
-**职责**:
-- 解析 config.json
-- 识别权重数据类型
-
-### 11.5 版本解锁处理器 (VersionUnlockHandler)
-
-**订阅事件**:
-- WeightConversionCompletedEvent
-- WeightConversionFailedEvent
-
-**职责**:
-- 解锁源版本
-- 更新版本锁定状态
-
-### 11.6 搜索索引处理器 (SearchIndexHandler)
-
-**订阅事件**:
-- ModelCreatedEvent
-- ModelModifiedEvent
-- ModelRestoredEvent
-- ModelHardDeletedEvent
-- CategoryCreatedEvent
-- CategoryDeletedEvent
-- ModelTypeCreatedEvent
-- ModelTypeDeletedEvent
-- TagAddedToModelEvent
-- TagRemovedFromModelEvent
-
-**职责**:
-- 更新搜索引擎索引
-- 维护搜索数据一致性
-
-### 11.7 告警处理器 (AlertHandler)
-
-**订阅事件**:
-- WeightUploadFailedEvent
-- WeightTypeRecognitionFailedEvent
-- WeightConversionFailedEvent
-- VersionLockExpiredEvent
-- VersionLockRenewalFailedEvent
-- VersionLockExpiringSoonEvent
-
-**职责**:
-- 发送告警通知
-- 记录异常事件
-- 通知任务方锁即将过期或已过期
-
-### 11.8 文件清理处理器 (FileCleanupHandler)
-
-**订阅事件**:
-- ModelHardDeletedEvent
-- VersionHardDeletedEvent
-
-**职责**:
-- 删除存储上的权重文件
-- 清理残留数据
-
-### 11.9 回收站处理器 (RecycleBinHandler)
-
-**订阅事件**:
-- ModelSoftDeletedEvent
-- ModelRestoredEvent
-- VersionSoftDeletedEvent
-- VersionRestoredEvent
-- ModelMovedToRecycleBinEvent
-- VersionMovedToRecycleBinEvent
-
-**职责**:
-- 维护回收站数据
-- 支持回收站查询
-
-### 11.10 任务监控处理器 (TaskMonitoringHandler)
-
-**订阅事件**:
-- WeightUploadStartedEvent
-- UploadTaskPausedEvent
-- UploadTaskResumedEvent
-
-**职责**:
-- 监控任务执行状态
-- 记录任务进度
-
-### 11.11 锁监控处理器 (LockMonitoringHandler)
-
-**订阅事件**:
-- VersionLockedEvent
-- VersionUnlockedEvent
-- VersionLockRenewedEvent
-- VersionLockRenewalFailedEvent
-- VersionLockExpiredEvent
-- VersionLockExpiringSoonEvent
-
-**职责**:
-- 监控锁的生命周期
-- 统计锁的使用情况
-- 分析锁过期原因
-- 生成锁使用报告
-
----
-
-## 12. 事件存储与追溯
-
-### 12.1 事件存储策略
+### 11.1 事件存储策略
 
 | 存储方式 | 适用场景 | 保留策略 |
 |----------|----------|----------|
@@ -1338,7 +1042,7 @@
 | **日志文件** | 所有事件 | 轮转保留 90 天 |
 | **消息队列** | 实时分发（如需要） | 不存储 |
 
-### 12.2 事件追溯能力
+### 11.2 事件追溯能力
 
 通过领域事件可以实现：
 - **操作审计**: 完整的操作历史记录
@@ -1348,7 +1052,7 @@
 
 ---
 
-## 13. 变更记录
+## 12. 变更记录
 
 | 版本 | 日期 | 变更内容 | 作者 |
 |------|------|----------|------|
@@ -1356,10 +1060,11 @@
 | v1.1 | 2026-04-21 | 补充锁续约相关事件：VersionLockRenewedEvent、VersionLockRenewalFailedEvent、VersionLockExpiringSoonEvent、LockRenewalPatternAnomalyDetectedEvent；新增锁监控处理器；更新事件总数为52个；补充锁生命周期和续约预警流程的事件序列 | Prometheus |
 | v1.2 | 2026-04-21 | 统一术语：将所有"上传/Upload"相关字眼统一替换为"上传/Upload"，包括WeightUploadService→WeightUploadService、WeightUploadHandler→WeightUploadHandler、uploadType→uploadType、触发权重上传流程→触发权重上传流程 | Prometheus |
 | v1.3 | 2026-04-22 | 1. Tag 从 Entity 提升为 Aggregate，新增 TagAddedToModelTypeEvent、TagRemovedFromModelTypeEvent 事件<br>2. TagCreatedEvent/TagDeletedEvent 增加 tagType、isBuiltIn 字段；内置标签不允许删除<br>3. ModelTypeCreatedEvent 移除 supportFinetune 字段（改为通过 Tag 关联表达）<br>4. 更新事件总览矩阵：标签管理事件从 4 增至 6，总事件数增至 54 | Prometheus |
+| v1.4 | 2026-04-22 | 1. 删除所有事件的"消费方"字段（当前采用领域服务直接调用，非事件驱动架构，消费方对设计无指导意义）<br>2. 删除第 11 章事件处理器映射（围绕消费方组织，随消费方一并删除）<br>3. 章节编号重排（11→13） | Prometheus |
 
 ---
 
-## 14. 参考文档
+## 13. 参考文档
 
 - [ModelLite-模型仓库-需求规格说明书-v1.2.md](/docs/ModelLite-模型仓库-需求规格说明书-v1.2.md)
 - [ModelLite-模型仓库-DDD架构设计-v1.0.md](/docs/architecture/ModelLite-模型仓库-DDD架构设计-v1.0.md)
