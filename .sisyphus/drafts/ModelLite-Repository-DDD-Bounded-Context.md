@@ -1,7 +1,7 @@
 # ModelLite 模型仓库 - 限界上下文设计（Bounded Context Design）
 
 > **文档类型**: DDD 限界上下文设计
-> **文档版本**: v1.0
+> **文档版本**: v1.1
 > **编写日期**: 2026-04-22
 > **适用范围**: ModelLite 平台模型仓库模块 DDD 架构设计
 > **目标读者**: 架构师、领域专家、后端开发工程师
@@ -564,11 +564,11 @@ classDiagram
 ```mermaid
 graph LR
     subgraph "模型仓库服务"
-        MWC["模型权重上下文<br/>ModelWeight"]
-        WTC["权重任务上下文<br/>WeightTask"]
+        MW["模型权重上下文<br/>（Supplier）"]
+        WT["权重任务上下文<br/>（Customer）"]
     end
 
-    MWC <|.. WTC : "Customer-Supplier<br/>（客户-供应商）<br/>领域服务直接调用"
+    WT -->|"领域服务直接调用"| MW
 ```
 
 **映射模式**: **Customer-Supplier（客户-供应商）**
@@ -873,6 +873,7 @@ graph TB
 | 版本 | 日期 | 变更内容 | 作者 |
 |------|------|----------|------|
 | v1.0 | 2026-04-22 | 初始版本，定义 2 个限界上下文（模型权重、权重任务），含聚合设计、上下文映射、协作流程、代码包结构 | Prometheus |
+| v1.1 | 2026-04-22 | 修复第 4.1 章节 Mermaid 图语法错误（UML 箭头语法不兼容 graph 类型） | Prometheus |
 
 ---
 
