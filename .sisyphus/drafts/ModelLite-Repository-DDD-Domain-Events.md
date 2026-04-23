@@ -1,7 +1,7 @@
 # ModelLite 模型仓库 - 领域事件风暴（Domain Event Storming）
 
 > **文档类型**: DDD 领域事件清单  
-> **文档版本**: v1.2  
+> **文档版本**: v1.3  
 > **编写日期**: 2026-04-21  
 > **适用范围**: ModelLite 平台模型仓库模块 DDD 架构设计  
 > **目标读者**: 架构师、领域专家、后端开发工程师
@@ -772,7 +772,6 @@
   categoryId: UUID       # 所属分类ID
   name: String           # 类型名称
   description: String    # 类型描述
-  supportFinetune: Boolean # 是否支持微调
   isBuiltIn: Boolean     # 是否内置
   createUser: String     # 创建者
   createTime: DateTime   # 创建时间
@@ -781,6 +780,8 @@
 消费方:
   - AuditLogHandler
   - SearchIndexHandler
+备注:
+  - 模型类型的能力（如 supportFinetune）通过 Tag 聚合关联表达，不再作为 ModelType 的字段
 ```
 
 #### ModelTypeDeletedEvent - 模型类型已删除
@@ -804,18 +805,43 @@
 
 ## 6. 标签管理领域事件
 
+> Tag 已提升为独立聚合根，同时服务两种关联场景：
+> - 与 Model 关联：用户自定义标签，用于模型组织（REQ-TAG-001）
+> - 与 ModelType 关联：能力标签（如 supportFinetune），描述模型类型的能力
+
 #### TagCreatedEvent - 标签已创建
 ```yaml
 触发时机: 创建新标签后
-发布方: Tag Entity
+发布方: Tag Aggregate
 事件数据:
   tagId: UUID            # 标签ID
   name: String           # 标签名称
+  tagType: Enum          # 标签类型 (USER/CAPABILITY)
+  isBuiltIn: Boolean     # 是否内置标签（内置标签不允许删除）
   createTime: DateTime   # 创建时间
 业务价值:
   - 记录标签创建
+  - 区分用户标签和能力标签
 消费方:
   - AuditLogHandler
+```
+
+#### TagDeletedEvent - 标签已删除
+```yaml
+触发时机: 删除用户自定义标签后（内置标签不允许删除）
+发布方: Tag Aggregate
+事件数据:
+  tagId: UUID            # 标签ID
+  name: String           # 标签名称
+  tagType: Enum          # 标签类型
+  operator: String       # 操作者
+  deleteTime: DateTime   # 删除时间
+业务价值:
+  - 记录标签删除
+消费方:
+  - AuditLogHandler
+约束:
+  - 内置标签（isBuiltIn=true）不允许删除
 ```
 
 #### TagAddedToModelEvent - 标签已添加到模型
@@ -852,19 +878,44 @@
   - SearchIndexHandler
 ```
 
-#### TagDeletedEvent - 标签已删除
+#### TagAddedToModelTypeEvent - 标签已添加到模型类型
 ```yaml
-触发时机: 删除标签后（如有模型使用，仅删除标签定义，保留关联）
-发布方: Tag Entity
+触发时机: 为模型类型添加能力标签后
+发布方: Tag Aggregate
 事件数据:
+  typeId: UUID           # 模型类型ID
   tagId: UUID            # 标签ID
-  name: String           # 标签名称
+  tagName: String        # 标签名称
+  tagType: Enum          # 标签类型（通常为 CAPABILITY）
   operator: String       # 操作者
-  deleteTime: DateTime   # 删除时间
+  addTime: DateTime      # 添加时间
 业务价值:
-  - 记录标签删除
+  - 记录模型类型的能力标签关联
+  - 替代原 ModelType.supportFinetune 字段，支持更灵活的能力扩展
 消费方:
   - AuditLogHandler
+  - SearchIndexHandler
+示例:
+  - 为 glm-5 类型添加 supportFinetune 标签
+  - 未来可扩展 supportQuantization、supportInference 等能力标签
+```
+
+#### TagRemovedFromModelTypeEvent - 标签已从模型类型移除
+```yaml
+触发时机: 从模型类型移除能力标签后
+发布方: Tag Aggregate
+事件数据:
+  typeId: UUID           # 模型类型ID
+  tagId: UUID            # 标签ID
+  tagName: String        # 标签名称
+  tagType: Enum          # 标签类型
+  operator: String       # 操作者
+  removeTime: DateTime   # 移除时间
+业务价值:
+  - 记录模型类型能力标签的解除关联
+消费方:
+  - AuditLogHandler
+  - SearchIndexHandler
 ```
 
 ---
@@ -976,7 +1027,7 @@
 | **UploadTask Aggregate** | 6 | UploadTaskCreated, WeightUploadStarted, WeightUploadCompleted, WeightUploadFailed, UploadTaskPaused, UploadTaskCancelled |
 | **ConvertTask Aggregate** | 4 | ConvertTaskCreated, WeightConversionStarted, WeightConversionCompleted, WeightConversionFailed |
 | **Category Aggregate** | 4 | CategoryCreated, CategoryDeleted, ModelTypeCreated, ModelTypeDeleted |
-| **Tag Entity** | 2 | TagCreated, TagDeleted |
+| **Tag Aggregate** | 6 | TagCreated, TagDeleted, TagAddedToModel, TagRemovedFromModel, TagAddedToModelType, TagRemovedFromModelType |
  | **领域服务** | 10 | WeightRegistered, TrainingWeightArchived, WeightValidationCompleted, WeightTypeRecognized, VersionLockRenewed, VersionLockRenewalFailed, VersionLockExpired, VersionLockExpiringSoon, ExpiredLocksCleaned, LockRenewalPatternAnomalyDetected |
 
 ### 9.2 按业务领域分类
@@ -990,16 +1041,16 @@
 | **权重转换** | 3 | WeightConversionStarted, WeightConversionCompleted, WeightConversionFailed |
 | **任务管理** | 7 | UploadTaskCreated, UploadTaskPaused, UploadTaskResumed, UploadTaskCancelled, UploadTaskDeleted, ConvertTaskCreated, ConvertTaskDeleted |
 | **分类管理** | 4 | CategoryCreated, CategoryDeleted, ModelTypeCreated, ModelTypeDeleted |
-| **标签管理** | 4 | TagCreated, TagAddedToModel, TagRemovedFromModel, TagDeleted |
+| **标签管理** | 6 | TagCreated, TagDeleted, TagAddedToModel, TagRemovedFromModel, TagAddedToModelType, TagRemovedFromModelType |
 | **系统运维** | 2 | ExpiredLocksCleaned, LockRenewalPatternAnomalyDetected |
 
 ### 9.3 按事件类型分类
 
 | 事件类型 | 数量 | 示例 |
 |----------|------|------|
-| **生命周期事件** | 20 | ModelCreated, VersionCreated, CategoryCreated |
+| **生命周期事件** | 20 | ModelCreated, VersionCreated, CategoryCreated, TagCreated |
 | **状态变更事件** | 3 | VersionStatusChanged, ResourceGroupVisibilityChanged |
-| **业务流程事件** | 18 | WeightUploadCompleted, WeightValidationCompleted, TrainingWeightArchived |
+| **业务流程事件** | 20 | WeightUploadCompleted, WeightValidationCompleted, TrainingWeightArchived, TagAddedToModelType |
 | **异常事件** | 4 | WeightUploadFailed, WeightTypeRecognitionFailed, WeightConversionFailed |
 | **时间触发事件** | 4 | VersionLockExpired, VersionLockExpiringSoon, ExpiredLocksCleaned, LockRenewalPatternAnomalyDetected |
 
@@ -1304,6 +1355,7 @@
 | v1.0 | 2026-04-21 | 初始版本，基于需求规格说明书 v1.2 进行事件风暴，识别 48 个领域事件 | Prometheus |
 | v1.1 | 2026-04-21 | 补充锁续约相关事件：VersionLockRenewedEvent、VersionLockRenewalFailedEvent、VersionLockExpiringSoonEvent、LockRenewalPatternAnomalyDetectedEvent；新增锁监控处理器；更新事件总数为52个；补充锁生命周期和续约预警流程的事件序列 | Prometheus |
 | v1.2 | 2026-04-21 | 统一术语：将所有"上传/Upload"相关字眼统一替换为"上传/Upload"，包括WeightUploadService→WeightUploadService、WeightUploadHandler→WeightUploadHandler、uploadType→uploadType、触发权重上传流程→触发权重上传流程 | Prometheus |
+| v1.3 | 2026-04-22 | 1. Tag 从 Entity 提升为 Aggregate，新增 TagAddedToModelTypeEvent、TagRemovedFromModelTypeEvent 事件<br>2. TagCreatedEvent/TagDeletedEvent 增加 tagType、isBuiltIn 字段；内置标签不允许删除<br>3. ModelTypeCreatedEvent 移除 supportFinetune 字段（改为通过 Tag 关联表达）<br>4. 更新事件总览矩阵：标签管理事件从 4 增至 6，总事件数增至 54 | Prometheus |
 
 ---
 
