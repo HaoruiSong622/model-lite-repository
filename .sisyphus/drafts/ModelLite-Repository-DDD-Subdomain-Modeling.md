@@ -195,30 +195,7 @@
 
 #### 核心领域事件
 
-| 事件 | 触发时机 |
-|------|----------|
-| ModelCreatedEvent | 创建模型及第一个版本成功后 |
-| ModelModifiedEvent | 修改模型元数据后 |
-| ModelSoftDeletedEvent | 软删除模型后 |
-| ModelHardDeletedEvent | 硬删除模型后（从回收站彻底删除） |
-| ModelRestoredEvent | 从回收站恢复模型后 |
-| VersionCreatedEvent | 创建新版本后 |
-| VersionStatusChangedEvent | 版本状态发生变更后 |
-| VersionSoftDeletedEvent | 软删除特定版本后 |
-| VersionHardDeletedEvent | 硬删除特定版本后 |
-| VersionRestoredEvent | 从回收站恢复特定版本后 |
-| CategoryCreatedEvent | 创建新分类后 |
-| CategoryDeletedEvent | 删除分类后 |
-| ModelTypeCreatedEvent | 创建新模型类型后 |
-| ModelTypeDeletedEvent | 删除模型类型后 |
-| TagCreatedEvent | 创建新标签后 |
-| TagDeletedEvent | 删除用户自定义标签后（内置标签不允许删除） |
-| TagAddedToModelEvent | 为模型添加标签后 |
-| TagRemovedFromModelEvent | 从模型移除标签后 |
-| TagAddedToModelTypeEvent | 为模型类型添加能力标签后 |
-| TagRemovedFromModelTypeEvent | 从模型类型移除能力标签后 |
-| ModelMovedToRecycleBinEvent | 模型软删除后移入回收站 |
-| VersionMovedToRecycleBinEvent | 版本软删除后移入回收站 |
+> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 2、5-8 章。
 
 #### 业务不变量
 
@@ -324,27 +301,7 @@ graph TB
 
 #### 核心领域事件
 
-| 事件 | 触发时机 |
-|------|----------|
-| WeightRegisteredEvent | 纳管操作完成后 |
-| WeightUploadStartedEvent | 上传任务创建并启动后 |
-| WeightUploadCompletedEvent | 上传任务成功完成后 |
-| WeightUploadFailedEvent | 上传任务失败后 |
-| WeightValidationStartedEvent | 触发权重完整性校验后 |
-| WeightValidationCompletedEvent | 权重完整性校验完成后 |
-| WeightTypeRecognizedEvent | 权重类型识别完成后 |
-| WeightTypeRecognitionFailedEvent | 权重类型识别失败时 |
-| TrainingWeightArchivedEvent | 训练模块归档权重完成 |
-| WeightConversionStartedEvent | 转换任务创建并启动后 |
-| WeightConversionCompletedEvent | 转换任务成功完成后 |
-| WeightConversionFailedEvent | 转换任务失败后 |
-| UploadTaskCreatedEvent | 上传任务创建后 |
-| UploadTaskPausedEvent | 用户暂停上传任务后 |
-| UploadTaskResumedEvent | 用户恢复上传任务后 |
-| UploadTaskCancelledEvent | 用户取消上传任务后 |
-| UploadTaskDeletedEvent | 删除上传任务记录后 |
-| ConvertTaskCreatedEvent | 转换任务创建后 |
-| ConvertTaskDeletedEvent | 删除转换任务记录后 |
+> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 3-4 章。
 
 #### 业务不变量
 
@@ -405,16 +362,7 @@ graph TB
 
 #### 核心领域事件
 
-| 事件 | 触发时机 |
-|------|----------|
-| VersionLockedEvent | 训推任务成功锁定版本后 |
-| VersionUnlockedEvent | 训推任务解锁版本后 |
-| VersionLockRenewedEvent | 锁持有者成功续约后 |
-| VersionLockRenewalFailedEvent | 锁续约失败时 |
-| VersionLockExpiredEvent | Leader 节点巡检发现锁已过期并清理后 |
-| VersionLockExpiringSoonEvent | Leader 节点巡检发现锁即将过期 |
-| ExpiredLocksCleanedEvent | Leader 节点巡检清理过期锁后 |
-| LockRenewalPatternAnomalyDetectedEvent | 系统检测到异常的锁续约模式时 |
+> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 2.3、8 章。
 
 #### 业务不变量
 
@@ -551,9 +499,9 @@ graph TB
 
 ---
 
-## 5. 决策记录
+## 6. 决策记录
 
-### 5.1 关键决策
+### 6.1 关键决策
 
 | 决策编号 | 决策内容 | 决策理由 | 讨论结论 |
 |----------|----------|----------|----------|
@@ -566,86 +514,23 @@ graph TB
 
 ---
 
-## 6. 子域与需求追溯矩阵
-
-### 6.1 模型权重子域
-
-| 需求编号 | 需求名称 | 对应能力 |
-|----------|----------|----------|
-| REQ-MODEL-001 | 模型创建 | 模型生命周期 |
-| REQ-MODEL-002 | 模型查看 | 模型生命周期 |
-| REQ-MODEL-003 | 模型修改 | 模型生命周期 |
-| REQ-VERSION-001 | 模型版本创建 | 版本生命周期 |
-| REQ-VERSION-002 | 模型版本查看 | 版本生命周期 |
-| REQ-DELETE-001 | 模型软删除 | 删除与恢复 |
-| REQ-DELETE-002 | 模型硬删除 | 删除与恢复 |
-| REQ-DELETE-003 | 模型恢复 | 删除与恢复 |
-| REQ-RECYCLE-001 | 回收站管理 | 删除与恢复 |
-| REQ-QUERY-001 | 模型列表查询 | 模型生命周期 |
-| REQ-CATEGORY-001 | 模型分类管理 | 分类体系 |
-| REQ-CATEGORY-002 | 模型分类/类型修改 | 分类体系 |
-| REQ-TAG-001 | 模型标签管理 | 标签管理 |
-| REQ-GENERAL-002 | 版本状态管理 | 版本生命周期 |
-| REQ-RBAC-001 | 资源组可见性控制 | 模型生命周期 |
-| REQ-RBAC-002 | 模型资源组归属 | 模型生命周期 |
-| REQ-RBAC-003 | public 资源组权限 | 模型生命周期 |
-| REQ-M2M-001 | 机机接口 — 查询权重路径 | 版本生命周期 |
-
-### 6.2 权重任务子域
-
-| 需求编号 | 需求名称 | 对应能力 |
-|----------|----------|----------|
-| REQ-REGISTER-001 | 权重纳管 | 权重纳管 |
-| REQ-REGISTER-002 | 纳管校验 | 权重纳管 |
-| REQ-UPLOAD-001 | 上传任务创建 | 权重上传 |
-| REQ-UPLOAD-002 | 上传任务管理 | 权重上传 |
-| REQ-CONVERT-001 | 权重格式转换 | 权重格式转换 |
-| REQ-CONVERT-002 | 转换任务管理 | 权重格式转换 |
-| REQ-INFO-001 | 权重类型识别 | 校验与识别 |
-| REQ-INFO-002 | 权重文件完整性校验 | 校验与识别 |
-| REQ-M2M-002 | 机机接口 — 训练权重归档 | 训练归档 |
-| REQ-SECURITY-001 | 文件后缀白名单 | 权重上传（校验） |
-
-### 6.3 版本锁子域
-
-| 需求编号 | 需求名称 | 对应能力 |
-|----------|----------|----------|
-| REQ-M2M-003 | 机机接口 — 权重版本锁定/解锁 | 锁定/解锁 |
-
----
-
-## 7. 子域与事件追溯矩阵
-
-### 7.1 按子域分类
-
-| 子域 | 事件数量 | 核心事件 |
-|------|----------|----------|
-| **模型权重子域** | 22 | ModelCreated, ModelModified, VersionCreated, VersionStatusChanged, CategoryCreated, TagAddedToModel, TagAddedToModelType |
-| **权重任务子域** | 19 | WeightRegistered, WeightUploadCompleted, WeightValidationCompleted, WeightTypeRecognized, WeightConversionCompleted, TrainingWeightArchived, UploadTaskCreated, ConvertTaskCreated |
-| **版本锁子域** | 8 | VersionLocked, VersionUnlocked, VersionLockRenewed, VersionLockExpired, ExpiredLocksCleaned |
-| **合计** | 49 | — |
-
-> 注：剩余 5 个事件（ResourceGroupVisibilityChanged 等）为系统级/未来扩展事件，归入模型权重子域。
-
----
-
-## 8. 变更记录
+## 7. 变更记录
 
 | 版本 | 日期 | 变更内容 | 作者 |
 |------|------|----------|------|
 | v1.0 | 2026-04-22 | 初始版本，基于事件风暴结果进行子域建模，识别 3 个子域 + 1 个基础设施层 | Prometheus |
-| v1.1 | 2026-04-22 | 1. 修正权重导入通道图：转换可作用于上传和归档得到的权重（均在平台内置 PVC 中）<br>2. 修正基础设施层关系图：去掉"端口"说法，改为同一服务内直接调用<br>3. 重写协作关系图：用 Mermaid 语法，清晰展示外部模块通过 M2M 接口与模型仓库交互<br>4. 所有图改用 Mermaid 语法 | Prometheus |
-| v1.2 | 2026-04-22 | 1. Tag 从 Model 聚合内部提升为独立聚合，同时关联 Model 和 ModelType<br>2. Category/ModelType 移除 deleted 字段（采用真删除）<br>3. ModelType 的 supportFinetune 改为通过 Tag 关联表达<br>4. 明确 isLocked 为反规范化字段，由 version_lock 表驱动更新<br>5. 新增业务不变量：内置标签不可删除、isLocked 一致性 | Prometheus |
+| v1.1 | 2026-04-22 | 修正权重导入通道图和协作关系图；所有图改用 Mermaid 语法 | Prometheus |
+| v1.2 | 2026-04-22 | Tag 提升为独立聚合；Category/ModelType 采用真删除；明确 isLocked 反规范化策略 | Prometheus |
+| v1.3 | 2026-04-24 | 文档精简：1. 领域事件清单改为引用 Domain Events 文档<br>2. 删除需求追溯矩阵和事件追溯矩阵（信息可从子域业务能力描述直接对应） | Prometheus |
 
 ---
 
-## 9. 参考文档
+## 8. 参考文档
 
 - [ModelLite-模型仓库-需求规格说明书-v1.2.md](/docs/ModelLite-模型仓库-需求规格说明书-v1.2.md)
 - [ModelLite-Repository-DDD-Ubiquitous-Language.md](./ModelLite-Repository-DDD-Ubiquitous-Language.md)
 - [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md)
-- [ModelLite-模型仓库-架构设计-v1.1.md](/docs/architecture/ModelLite-模型仓库-架构设计-v1.1.md)
-- [project-understanding-summary.md](/docs/project-understanding/project-understanding-summary.md)
+- [ModelLite-Repository-DDD-Bounded-Context.md](./ModelLite-Repository-DDD-Bounded-Context.md)
 
 ---
 

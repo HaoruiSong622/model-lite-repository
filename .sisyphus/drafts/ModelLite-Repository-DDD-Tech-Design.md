@@ -352,39 +352,7 @@ throw new ModelLiteException("0102001", "模型不存在");
 
 **示例**:
 
-```xml
-<!-- ModelMapper.xml -->
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
-    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-
-<mapper namespace="com.huawei.modellite.repository.infrastructure.persistence.mapper.ModelMapper">
-    
-    <resultMap id="ModelResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model">
-        <id property="modelId" column="id"/>
-        <result property="name.value" column="name"/>
-        <result property="description" column="description"/>
-        <result property="categoryId" column="category_id"/>
-        <result property="typeId" column="type_id"/>
-        <result property="resourceGroup.value" column="resource_group"/>
-        <result property="createUser" column="create_user"/>
-        <result property="author" column="author"/>
-        <result property="deleted" column="deleted"/>
-        <result property="createTime" column="create_time"/>
-        <result property="updateTime" column="update_time"/>
-    </resultMap>
-    
-    <select id="findById" resultMap="ModelResultMap">
-        SELECT * FROM model WHERE id = #{modelId} AND deleted = FALSE
-    </select>
-    
-    <insert id="insert">
-        INSERT INTO model (id, name, description, category_id, type_id, resource_group, create_user, author, deleted, create_time, update_time)
-        VALUES (#{modelId}, #{name.value}, #{description}, #{categoryId}, #{typeId}, #{resourceGroup.value}, #{createUser}, #{author}, #{deleted}, #{createTime}, #{updateTime})
-    </insert>
-    
-</mapper>
-```
+> Mapper XML 遵循 MyBatis 标准写法，使用 ResultMap 映射领域对象字段。值对象字段通过 `property="name.value"` 方式映射嵌套属性。具体示例见各 Feature 设计文档。
 
 ### 6.3 事务隔离级别
 
@@ -430,65 +398,11 @@ throw new ModelLiteException("0102001", "模型不存在");
 
 **单元测试示例**:
 
-```java
-class ModelTest {
-    
-    @Test
-    void should_createModelWithFirstVersion_when_validInput() {
-        // Given
-        ModelName name = new ModelName("test-model");
-        ResourceGroup resourceGroup = new ResourceGroup("default");
-        UUID categoryId = UUID.randomUUID();
-        UUID typeId = UUID.randomUUID();
-        
-        // When
-        Model model = Model.createModel(name, "description", categoryId, typeId, resourceGroup, "user", WeightSource.register(...));
-        
-        // Then
-        assertThat(model.getName()).isEqualTo(name);
-        assertThat(model.getResourceGroup()).isEqualTo(resourceGroup);
-        assertThat(model.getVersions()).hasSize(1);
-    }
-    
-    @Test
-    void should_throwException_when_createDuplicateVersion() {
-        // Given
-        Model model = createTestModel();
-        
-        // When/Then
-        assertThatThrownBy(() -> model.createVersion(1, ...)) // 重复版本号
-            .isInstanceOf(ModelLiteException.class)
-            .hasMessageContaining("版本号不连续");
-    }
-}
-```
+> 单元测试聚焦领域层（聚合根、值对象），使用 Given-When-Then 结构。具体测试用例见各 Feature 设计文档的测试章节。
 
 **集成测试示例**:
 
-```java
-@Testcontainers
-class MyBatisModelRepositoryTest {
-    
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15");
-    
-    private MyBatisModelRepository repository;
-    
-    @Test
-    void should_saveAndLoadModel() {
-        // Given
-        Model model = createTestModel();
-        
-        // When
-        repository.save(model);
-        Model loaded = repository.findById(model.getModelId());
-        
-        // Then
-        assertThat(loaded).isNotNull();
-        assertThat(loaded.getName()).isEqualTo(model.getName());
-    }
-}
-```
+> 集成测试使用 Testcontainers 启动真实 PostgreSQL 容器，验证 Repository 的持久化逻辑。具体测试用例见各 Feature 设计文档。
 
 ---
 
@@ -588,6 +502,7 @@ logging:
 |------|------|----------|------|
 | v1.0 | 2026-04-22 | 初始版本，记录技术栈、DDD 实践、代码规范、API 规范、数据库规范、测试规范、配置管理规范 | Prometheus |
 | v1.1 | 2026-04-22 | 删除 6.2 新增表、6.3 tag 表更新、6.4 model_type 表更新（设计内容不属于代码规范文档） | Prometheus |
+| v1.2 | 2026-04-24 | 文档精简：1. MyBatis Mapper 示例代码精简为文字描述<br>2. 测试示例代码精简为文字描述（具体用例见各 Feature 文档） | Prometheus |
 
 ---
 

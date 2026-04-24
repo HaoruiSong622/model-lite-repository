@@ -410,201 +410,55 @@ erDiagram
 | model_tag | idx_model_tag_tag | B-tree | tag_id | 删除标签前检查引用 |
 | model_type_tag | idx_model_type_tag_tag | B-tree | tag_id | 删除标签前检查引用 |
 
-### 2.4 数据字典
-
-#### model 表
-
-| 字段名 | 类型 | 是否必填 | 默认值 | 取值范围/说明 |
-|--------|------|----------|--------|---------------|
-| id | UUID | Y | gen_random_uuid() | 主键 |
-| name | VARCHAR(255) | Y | — | 1-255 字符，仅允许字母、数字、中文、下划线、中划线 |
-| description | VARCHAR(2000) | N | '' | 0-2000 字符 |
-| category_id | UUID | Y | — | 外键引用 category.id |
-| type_id | UUID | Y | — | 外键引用 model_type.id |
-| resource_group | VARCHAR(100) | Y | — | 资源组标识，创建后不可修改 |
-| create_user | VARCHAR(100) | Y | — | 创建者 |
-| author | VARCHAR(100) | N | NULL | 模型作者 |
-| series_name | VARCHAR(255) | N | NULL | 模型系列名称（如 GLM-5 系列） |
-| model_size | BIGINT | N | NULL | 模型大小（单位：字节） |
-| max_seq_length | INTEGER | N | NULL | 最大序列长度（单位：tokens） |
-| deleted | BOOLEAN | Y | FALSE | 软删除标记 |
-| create_time | TIMESTAMP WITH TIME ZONE | Y | NOW() | 创建时间 |
-| update_time | TIMESTAMP WITH TIME ZONE | Y | NOW() | 更新时间 |
-
-#### model_version 表
-
-| 字段名 | 类型 | 是否必填 | 默认值 | 取值范围/说明 |
-|--------|------|----------|--------|---------------|
-| id | UUID | Y | gen_random_uuid() | 主键 |
-| model_id | UUID | Y | — | 外键引用 model.id |
-| version_number | INTEGER | Y | — | 自动递增（V1, V2...），不允许跳号 |
-| pvc_name | VARCHAR(255) | N | NULL | 权重存储 PVC 名称 |
-| internal_path | VARCHAR(1024) | N | NULL | PVC 内部路径 |
-| weight_type | VARCHAR(50) | N | NULL | FP16、w8a8 等，自动识别 |
-| is_registered | BOOLEAN | Y | FALSE | TRUE=纳管版本（只读挂载） |
-| status | VARCHAR(30) | Y | 'NoWeight' | NoWeight / Uploading / Available / UploadFailed / ValidationFailed / Error |
-| is_locked | BOOLEAN | Y | FALSE | 反规范化字段，由 version_lock 表驱动 |
-| train_frame | VARCHAR(100) | N | NULL | 训练框架（归档版本） |
-| train_type | VARCHAR(100) | N | NULL | 训练类型（归档版本） |
-| train_strategy | VARCHAR(100) | N | NULL | 训练策略（归档版本） |
-| train_time | BIGINT | N | NULL | 训练时长（毫秒，归档版本） |
-| final_loss | VARCHAR(100) | N | NULL | 最终 Loss（归档版本） |
-| source_version | VARCHAR(50) | N | NULL | 权重来源版本（归档版本） |
-| deleted | BOOLEAN | Y | FALSE | 软删除标记 |
-| create_time | TIMESTAMP WITH TIME ZONE | Y | NOW() | 创建时间 |
-| update_time | TIMESTAMP WITH TIME ZONE | Y | NOW() | 更新时间 |
-
-#### version_lock 表
-
-| 字段名 | 类型 | 是否必填 | 默认值 | 取值范围/说明 |
-|--------|------|----------|--------|---------------|
-| id | UUID | Y | gen_random_uuid() | 主键 |
-| version_id | UUID | Y | — | 外键引用 model_version.id |
-| locker_id | VARCHAR(200) | Y | — | 锁持有者标识（任务 ID） |
-| lock_type | VARCHAR(30) | Y | — | INFERENCE / TRAINING / EVALUATION / DEVELOPMENT |
-| expire_time | TIMESTAMP WITH TIME ZONE | Y | — | 锁过期时间（创建时间 + 24h） |
-| create_time | TIMESTAMP WITH TIME ZONE | Y | NOW() | 锁定时间 |
-
 ---
 
 ## 3. 领域模型设计
 
-### 3.1 类图 — 枚举
+### 3.1 枚举定义
 
-```mermaid
-classDiagram
-    class VersionStatus {
-        <<enumeration>>
-        NO_WEIGHT
-        UPLOADING
-        AVAILABLE
-        UPLOAD_FAILED
-        VALIDATION_FAILED
-        ERROR
-        -String dbValue
-        -String displayName
-        +fromDbValue(String) VersionStatus
-    }
-    
-    class TaskStatus {
-        <<enumeration>>
-        PENDING
-        RUNNING
-        PAUSED
-        COMPLETED
-        FAILED
-        CANCELLED
-        -String dbValue
-        -String displayName
-        +fromDbValue(String) TaskStatus
-    }
-    
-    class LockType {
-        <<enumeration>>
-        INFERENCE
-        TRAINING
-        EVALUATION
-        DEVELOPMENT
-        -String dbValue
-        -String displayName
-        +fromDbValue(String) LockType
-    }
-    
-    class SourceType {
-        <<enumeration>>
-        NFS
-        CIFS
-        PVC
-        -String dbValue
-        -String displayName
-        +fromDbValue(String) SourceType
-    }
-    
-    class TagType {
-        <<enumeration>>
-        USER
-        CAPABILITY
-        -String dbValue
-        -String displayName
-        +fromDbValue(String) TagType
-    }
-```
+所有枚举遵循统一结构：`枚举名(Java名, dbValue, displayName)`，提供 `fromDbValue(String)` 反序列化方法。
 
-### 3.2 核心类定义
+| 枚举类 | 枚举值 | dbValue | displayName | 说明 |
+|--------|--------|---------|-------------|------|
+| **VersionStatus** | NO_WEIGHT | NoWeight | 无权重 | 版本已创建但尚未有权重文件 |
+| | UPLOADING | Uploading | 上传中 | 权重文件正在上传/复制中 |
+| | AVAILABLE | Available | 可用 | 权重文件已就绪，校验通过 |
+| | UPLOAD_FAILED | UploadFailed | 上传失败 | 权重文件上传/复制失败 |
+| | VALIDATION_FAILED | ValidationFailed | 校验失败 | 完整性校验或类型识别失败 |
+| | ERROR | Error | 异常 | 其他非预期的异常状态 |
+| **TaskStatus** | PENDING | Pending | 待执行 | 任务已创建，尚未开始 |
+| | RUNNING | Running | 执行中 | 任务正在执行 |
+| | PAUSED | Paused | 已暂停 | 用户暂停了任务 |
+| | COMPLETED | Completed | 已完成 | 任务成功完成 |
+| | FAILED | Failed | 失败 | 任务执行失败 |
+| | CANCELLED | Cancelled | 已取消 | 用户取消了任务 |
+| **LockType** | INFERENCE | Inference | 推理服务 | 推理模块部署的在线服务 |
+| | TRAINING | Training | 训练任务 | 训练模块发起的微调任务 |
+| | EVALUATION | Evaluation | 评测任务 | 评测模块发起的评估任务 |
+| | DEVELOPMENT | Development | 模型开发 | Jupyter 模型开发环境 |
+| **SourceType** | NFS | NFS | NFS 存储 | 网络文件系统 |
+| | CIFS | CIFS | CIFS 存储 | Windows 共享（需认证） |
+| | PVC | PVC | PVC 存储 | Kubernetes PersistentVolumeClaim |
+| **TagType** | USER | USER | 用户自定义标签 | 用户手动添加的标签 |
+| | CAPABILITY | CAPABILITY | 能力标签 | 描述模型类型的能力 |
 
-#### VersionStatus（枚举）
-
-| 枚举值 | dbValue | displayName | 说明 |
-|--------|---------|-------------|------|
-| NO_WEIGHT | NoWeight | 无权重 | 版本已创建但尚未有权重文件 |
-| UPLOADING | Uploading | 上传中 | 权重文件正在上传/复制中 |
-| AVAILABLE | Available | 可用 | 权重文件已就绪，校验通过 |
-| UPLOAD_FAILED | UploadFailed | 上传失败 | 权重文件上传/复制失败 |
-| VALIDATION_FAILED | ValidationFailed | 校验失败 | 完整性校验或类型识别失败 |
-| ERROR | Error | 异常 | 其他非预期的异常状态 |
-
-**枚举通用结构伪代码**（所有枚举遵循相同模式）:
+**枚举通用结构伪代码**（所有枚举遵循相同模式）：
 
 ```java
 public enum VersionStatus {
     NO_WEIGHT("NoWeight", "无权重"),
-    UPLOADING("Uploading", "上传中"),
-    AVAILABLE("Available", "可用"),
-    UPLOAD_FAILED("UploadFailed", "上传失败"),
-    VALIDATION_FAILED("ValidationFailed", "校验失败"),
-    ERROR("Error", "异常");
+    // ... 其他值
 
     private final String dbValue;
     private final String displayName;
 
-    // 标准构造方法、getter
-
-    // 从数据库值反序列化，找不到时抛 IllegalArgumentException
     public static VersionStatus fromDbValue(String dbValue) {
-        for (VersionStatus status : values()) {
-            if (status.dbValue.equals(dbValue)) return status;
-        }
-        throw new IllegalArgumentException("Unknown VersionStatus: " + dbValue);
+        // 遍历匹配，找不到时抛 IllegalArgumentException
     }
 }
 ```
 
-#### TaskStatus（枚举）
-
-| 枚举值 | dbValue | displayName | 说明 |
-|--------|---------|-------------|------|
-| PENDING | Pending | 待执行 | 任务已创建，尚未开始 |
-| RUNNING | Running | 执行中 | 任务正在执行 |
-| PAUSED | Paused | 已暂停 | 用户暂停了任务 |
-| COMPLETED | Completed | 已完成 | 任务成功完成 |
-| FAILED | Failed | 失败 | 任务执行失败 |
-| CANCELLED | Cancelled | 已取消 | 用户取消了任务 |
-
-#### LockType（枚举）
-
-| 枚举值 | dbValue | displayName | 说明 |
-|--------|---------|-------------|------|
-| INFERENCE | Inference | 推理服务 | 推理模块部署的在线服务 |
-| TRAINING | Training | 训练任务 | 训练模块发起的微调任务 |
-| EVALUATION | Evaluation | 评测任务 | 评测模块发起的评估任务 |
-| DEVELOPMENT | Development | 模型开发 | Jupyter 模型开发环境 |
-
-#### SourceType（枚举）
-
-| 枚举值 | dbValue | displayName | 说明 |
-|--------|---------|-------------|------|
-| NFS | NFS | NFS 存储 | 网络文件系统 |
-| CIFS | CIFS | CIFS 存储 | Windows 共享（需认证） |
-| PVC | PVC | PVC 存储 | Kubernetes PersistentVolumeClaim |
-
-#### TagType（枚举）
-
-| 枚举值 | dbValue | displayName | 说明 |
-|--------|---------|-------------|------|
-| USER | USER | 用户自定义标签 | 用户手动添加的标签 |
-| CAPABILITY | CAPABILITY | 能力标签 | 描述模型类型的能力 |
-
-### 3.3 错误码定义
+### 3.2 错误码定义
 
 ```java
 public final class ErrorCode {
@@ -655,7 +509,7 @@ public final class ErrorCode {
 | 0102013 | 404 | 转换任务不存在 |
 | 0102014 | 400 | 不支持的格式 |
 
-### 3.4 TypeHandler（MyBatis 枚举转换）
+### 3.3 TypeHandler（MyBatis 枚举转换）
 
 每个枚举对应一个 TypeHandler，负责 VARCHAR ↔ 枚举的双向转换。所有 TypeHandler 放在 `infrastructure/persistence/typehandler/` 包下。
 
@@ -688,7 +542,7 @@ public class VersionStatusTypeHandler extends BaseTypeHandler<VersionStatus> {
 | SourceTypeTypeHandler | SourceType | VARCHAR(20) |
 | TagTypeTypeHandler | TagType | VARCHAR(20) |
 
-### 3.5 业务不变量
+### 3.4 业务不变量
 
 本特性为基础设施层，不涉及业务逻辑。以下不变量由数据库约束强制保证，供后续特性参考：
 
