@@ -1,4 +1,6 @@
 tmp/
 sessions/
 .agents/
+.opencode/
+openspec/
 skills-lock.json
