@@ -262,7 +262,7 @@ throw new ModelLiteException("0102001", "模型不存在");
 | DELETE | `/v2/ui/models/{modelId}` | 软删除模型 |
 | POST | `/v2/ui/models/{modelId}/versions` | 创建版本 |
 | GET | `/v2/ui/upload-tasks` | 查询上传任务列表 |
-| GET | `/v2/ui/classifications` | 查询分类列表 |
+| GET | `/v2/ui/categories` | 查询分类列表 |
 
 **机机接口示例**:
 
@@ -364,7 +364,7 @@ throw new ModelLiteException("0102001", "模型不存在");
         <id property="modelId" column="id"/>
         <result property="name.value" column="name"/>
         <result property="description" column="description"/>
-        <result property="categoryId" column="classification_id"/>
+        <result property="categoryId" column="category_id"/>
         <result property="typeId" column="type_id"/>
         <result property="resourceGroup.value" column="resource_group"/>
         <result property="createUser" column="create_user"/>
@@ -379,7 +379,7 @@ throw new ModelLiteException("0102001", "模型不存在");
     </select>
     
     <insert id="insert">
-        INSERT INTO model (id, name, description, classification_id, type_id, resource_group, create_user, author, deleted, create_time, update_time)
+        INSERT INTO model (id, name, description, category_id, type_id, resource_group, create_user, author, deleted, create_time, update_time)
         VALUES (#{modelId}, #{name.value}, #{description}, #{categoryId}, #{typeId}, #{resourceGroup.value}, #{createUser}, #{author}, #{deleted}, #{createTime}, #{updateTime})
     </insert>
     

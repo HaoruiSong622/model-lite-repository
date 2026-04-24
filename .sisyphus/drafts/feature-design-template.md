@@ -77,7 +77,7 @@ erDiagram
     model {
         uuid id "模型ID"
         varchar name "模型名称"
-        uuid classification_id "分类ID"
+        uuid category_id "分类ID"
         boolean deleted "软删除标记"
     }
     
@@ -88,13 +88,13 @@ erDiagram
         varchar status "版本状态"
     }
     
-    classification {
+    category {
         uuid id "分类ID"
         varchar name "分类名称"
     }
     
     model ||--o{ model_version : "包含多个版本"
-    classification ||--o{ model : "分类下的模型"
+    category ||--o{ model : "分类下的模型"
 ```
 
 ### 2.3 索引设计
