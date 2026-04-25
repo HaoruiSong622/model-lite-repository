@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class TypeHandlerIntegrationTest extends AbstractIntegrationTest {
@@ -16,24 +18,23 @@ class TypeHandlerIntegrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("should verify enum dbValue is stored as VARCHAR in database")
     void should_verifyEnumDbValueStored() {
-        jdbcTemplate.execute("INSERT INTO category (name) VALUES ('TestCategory')");
-
-        String categoryId = jdbcTemplate.queryForObject(
-            "SELECT id FROM category WHERE name = 'TestCategory'", String.class);
+        UUID categoryId = UUID.randomUUID();
         jdbcTemplate.execute(String.format(
-            "INSERT INTO model_type (category_id, name) VALUES ('%s', 'TestType')", categoryId));
+            "INSERT INTO category (id, name) VALUES ('%s', 'TestCategory')", categoryId));
 
-        String typeId = jdbcTemplate.queryForObject(
-            "SELECT id FROM model_type WHERE name = 'TestType'", String.class);
+        UUID typeId = UUID.randomUUID();
         jdbcTemplate.execute(String.format(
-            "INSERT INTO model (name, category_id, type_id, resource_group, create_user) " +
-            "VALUES ('TestModel', '%s', '%s', 'test-rg', 'test-user')", categoryId, typeId));
+            "INSERT INTO model_type (id, category_id, name) VALUES ('%s', '%s', 'TestType')", typeId, categoryId));
 
-        String modelId = jdbcTemplate.queryForObject(
-            "SELECT id FROM model WHERE name = 'TestModel'", String.class);
+        UUID modelId = UUID.randomUUID();
         jdbcTemplate.execute(String.format(
-            "INSERT INTO model_version (model_id, version_number, status) " +
-            "VALUES ('%s', 1, 'Available')", modelId));
+            "INSERT INTO model (id, name, category_id, type_id, resource_group, create_user) " +
+            "VALUES ('%s', 'TestModel', '%s', '%s', 'test-rg', 'test-user')", modelId, categoryId, typeId));
+
+        UUID versionId = UUID.randomUUID();
+        jdbcTemplate.execute(String.format(
+            "INSERT INTO model_version (id, model_id, version_number, status) " +
+            "VALUES ('%s', '%s', 1, 'Available')", versionId, modelId));
 
         String statusValue = jdbcTemplate.queryForObject(
             "SELECT status FROM model_version WHERE version_number = 1", String.class);

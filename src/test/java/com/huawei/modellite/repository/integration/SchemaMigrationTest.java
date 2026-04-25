@@ -17,30 +17,20 @@ class SchemaMigrationTest extends AbstractIntegrationTest {
     @Test
     @DisplayName("should create all 10 core tables")
     void should_createAllCoreTables() {
-        List<String> tables = jdbcTemplate.queryForList(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename",
+        List<String> allTables = jdbcTemplate.queryForList(
+            "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'public'",
             String.class
         );
 
-        assertTrue(tables.contains("category"), "Missing table: category");
-        assertTrue(tables.contains("model_type"), "Missing table: model_type");
-        assertTrue(tables.contains("tag"), "Missing table: tag");
-        assertTrue(tables.contains("model"), "Missing table: model");
-        assertTrue(tables.contains("model_version"), "Missing table: model_version");
-        assertTrue(tables.contains("model_tag"), "Missing table: model_tag");
-        assertTrue(tables.contains("model_type_tag"), "Missing table: model_type_tag");
-        assertTrue(tables.contains("version_lock"), "Missing table: version_lock");
-        assertTrue(tables.contains("upload_task"), "Missing table: upload_task");
-        assertTrue(tables.contains("convert_task"), "Missing table: convert_task");
-    }
+        String[] expectedTables = {
+            "CATEGORY", "MODEL_TYPE", "TAG", "MODEL", "MODEL_VERSION",
+            "MODEL_TAG", "MODEL_TYPE_TAG", "VERSION_LOCK", "UPLOAD_TASK", "CONVERT_TASK"
+        };
 
-    @Test
-    @DisplayName("should have flyway_schema_history table")
-    void should_haveFlywayHistory() {
-        List<String> tables = jdbcTemplate.queryForList(
-            "SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = 'flyway_schema_history'",
-            String.class
-        );
-        assertFalse(tables.isEmpty(), "Missing flyway_schema_history table");
+        for (String expected : expectedTables) {
+            boolean found = allTables.stream()
+                .anyMatch(t -> t.equalsIgnoreCase(expected));
+            assertTrue(found, "Missing table: " + expected);
+        }
     }
 }

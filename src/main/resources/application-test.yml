@@ -1,8 +1,16 @@
 spring:
   datasource:
-    url: jdbc:tc:postgresql:16:///modellite_test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:h2:mem:modellite_test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:sql/schema/h2/V1__create_core_tables.sql
 
 logging:
   level:

@@ -39,14 +39,15 @@
 |------|------|------|------|
 | **开发框架** | Spring Boot | 3.4.5 | 核心框架 |
 | **编程语言** | Java | 21 LTS | 使用虚拟线程等新特性 |
-| **数据库** | PostgreSQL | — | 关系型数据库 |
+| **数据库** | PostgreSQL | — | 关系型数据库（生产环境） |
 | **ORM** | MyBatis | — | 轻量级 ORM，XML 方式定义 SQL |
 | **连接池** | Druid | — | 阿里巴巴开源连接池 |
 | **构建工具** | Maven | — | 依赖管理与构建 |
 | **单元测试** | JUnit 5 | — | 测试框架 |
 | **Mock 测试** | Mockito | — | Mock 框架 |
-| **集成测试** | Testcontainers | — | Docker 化测试环境 |
-| **ID 生成** | UUID v4 | — | `gen_random_uuid()` |
+| **集成测试数据库** | H2 | — | 内存数据库，PostgreSQL 兼容模式 |
+| **数据库迁移** | SQL 脚本手动管理 | — | 按目录隔离不同数据库的 DDL |
+| **ID 生成** | UUID v4 | — | 应用侧 `UUID.randomUUID()` 生成 |
 
 ### 2.2 Kubernetes 相关
 
@@ -358,6 +359,52 @@ throw new ModelLiteException("0102001", "模型不存在");
 
 **决策**: 使用 **READ COMMITTED**（PostgreSQL 默认）。
 
+### 6.4 数据库迁移管理
+
+**决策**: 使用 **SQL 脚本手动管理**，不使用 Flyway 等自动迁移框架。
+
+**脚本目录结构**:
+
+```
+src/main/resources/sql/
+├── schema/
+│   ├── postgresql/
+│   │   └── V1__create_core_tables.sql      # PostgreSQL DDL（生产/开发环境）
+│   │   └── V2__*.sql                       # 后续增量变更
+│   └── h2/
+│   │   └── V1__create_core_tables.sql      # H2 适配版 DDL（集成测试）
+│   │   └── V2__*.sql                       # 后续增量变更（H2 适配）
+│   └── gaussdb/                            # 未来预留
+│   └── oracle/                             # 未来预留
+├── data/
+│   └── V1__builtin_data.sql                # 内置数据填充（Feature 2）
+```
+
+**命名规范**:
+
+- 版本号前缀：`V{n}__{description}.sql`（如 `V1__create_core_tables.sql`）
+- 版本号全局递增，按顺序执行
+- `n` 为整数，支持多位（如 `V01`, `V02`）
+
+**执行方式**:
+
+- 手动执行或 CI pipeline 执行，不通过框架自动迁移
+- 生产环境部署前由运维或 DBA 按版本号顺序执行
+- 每次增量变更需编写对应的回滚脚本（可选）
+
+**多数据库支持策略**:
+
+- 按 `sql/schema/{db-type}/` 目录隔离不同数据库的 DDL
+- 当前仅 PostgreSQL 生产环境 + H2 测试环境
+- 预留 GaussDB、Oracle 等目录，未来换数据库时增量编写适配 DDL
+- 应用侧生成 UUID（`UUID.randomUUID()`），避免依赖数据库特有的 `gen_random_uuid()` 函数
+- PostgreSQL 特有语法（部分唯一约束 `WHERE deleted = FALSE`、部分索引 `WHERE deleted = FALSE`、`COMMENT ON`）保留在生产 DDL，H2 DDL 去掉这些特性
+
+**回滚策略**:
+
+- 增量变更脚本需编写对应回滚脚本，放在同目录下（如 `V2__rollback.sql`）
+- 回滚脚本命名规则待定
+
 ---
 
 ## 7. 测试规范
@@ -377,7 +424,14 @@ throw new ModelLiteException("0102001", "模型不存在");
 |------|------|
 | JUnit 5 | 单元测试框架 |
 | Mockito | Mock 依赖 |
-| Testcontainers | 集成测试（PostgreSQL 容器） |
+| H2 | 集成测试数据库（PostgreSQL 兼容模式，离线可运行，不依赖外部服务） |
+
+**集成测试数据库策略**:
+
+- 使用 H2 内存数据库（`MODE=PostgreSQL`）运行集成测试，确保离线可运行、CI 流水线不依赖 Docker 或外部 PostgreSQL 实例
+- H2 覆盖 Mapper 基本 CRUD、ResultMap 映射、TypeHandler 转换等场景
+- PostgreSQL 特有特性（部分唯一约束 `WHERE deleted = FALSE`、部分索引 `WHERE deleted = FALSE`）不在 H2 测试覆盖范围内，由 DDL review 和生产环境验证保障
+- DDL 脚本按数据库类型分目录维护，测试环境使用 H2 适配版 DDL
 
 ### 7.3 测试层次
 
@@ -402,7 +456,7 @@ throw new ModelLiteException("0102001", "模型不存在");
 
 **集成测试示例**:
 
-> 集成测试使用 Testcontainers 启动真实 PostgreSQL 容器，验证 Repository 的持久化逻辑。具体测试用例见各 Feature 设计文档。
+> 集成测试使用 H2 内存数据库（PostgreSQL 兼容模式），验证 Repository 的持久化逻辑。H2 覆盖 Mapper 基本 CRUD、ResultMap 映射、TypeHandler 转换等场景。PostgreSQL 特有特性（如部分唯一约束 `WHERE deleted = FALSE`）不在 H2 测试覆盖范围内，由 DDL review 和生产环境验证保障。具体测试用例见各 Feature 设计文档。
 
 ---
 
@@ -493,6 +547,9 @@ logging:
 | T-12 | Spring Profile 多环境配置 | Spring Boot 标准，便于切换环境 |
 | T-13 | DDD 标准类命名 | 聚合根无后缀、DTO Request/Response、仓储实现 MyBatis 前缀 |
 | T-14 | READ COMMITTED 事务隔离 | PostgreSQL 默认，适合大多数场景 |
+| T-15 | 集成测试使用 H2 内存数据库 | 离线可运行；CI 流水线无 Docker runtime；不依赖外部 PostgreSQL 实例 |
+| T-16 | 数据库迁移使用 SQL 脚本手动管理 | CI 流水线无 Docker runtime 无法使用 Flyway 自动迁移；手动管理更可控；按数据库类型分目录隔离 |
+| T-17 | UUID 由应用侧生成 | 使用 `UUID.randomUUID()` 替代数据库 `gen_random_uuid()`，解耦数据库实现，支持未来切换数据库 |
 
 ---
 
@@ -503,6 +560,7 @@ logging:
 | v1.0 | 2026-04-22 | 初始版本，记录技术栈、DDD 实践、代码规范、API 规范、数据库规范、测试规范、配置管理规范 | Prometheus |
 | v1.1 | 2026-04-22 | 删除 6.2 新增表、6.3 tag 表更新、6.4 model_type 表更新（设计内容不属于代码规范文档） | Prometheus |
 | v1.2 | 2026-04-24 | 文档精简：1. MyBatis Mapper 示例代码精简为文字描述<br>2. 测试示例代码精简为文字描述（具体用例见各 Feature 文档） | Prometheus |
+| v1.3 | 2026-04-25 | 技术栈调整：1. 移除 Testcontainers，集成测试改用 H2 内存数据库<br>2. 移除 Flyway，数据库迁移改为 SQL 脚本手动管理<br>3. UUID 生成从数据库侧移到应用侧<br>4. 新增 6.4 数据库迁移管理章节<br>5. 新增决策 T-15/T-16/T-17 | Prometheus |
 
 ---
 
