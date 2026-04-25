@@ -4,3 +4,5 @@ sessions/
 .opencode/
 openspec/
 skills-lock.json
+.idea/
+target/

@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16:///modellite_test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    type: com.alibaba.druid.pool.DruidDataSource
+
+logging:
+  level:
+    com.huawei.modellite: DEBUG
