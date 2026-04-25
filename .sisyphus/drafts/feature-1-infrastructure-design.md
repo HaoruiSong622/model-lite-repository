@@ -26,8 +26,6 @@
 - Druid 连接池配置（dev/prod）
 - Logback 日志轮转配置
 - 文件后缀白名单 ConfigMap + 加载类
-- SSL/TLS 基础设施配置
-- K8s Deployment + Service YAML
 - 健康检查接口
 
 **OUT（不包含）**:
