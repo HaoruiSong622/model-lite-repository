@@ -203,7 +203,7 @@
 
 ## 6. 参考文档
 
-- [ModelLite-模型仓库-需求规格说明书-v1.2.md](/docs/ModelLite-模型仓库-需求规格说明书-v1.2.md)
+- [ModelLite-模型仓库-需求规格说明书-v1.2.md](/.sisyphus/drafts/ModelLite-模型仓库-需求规格说明书-v1.2.md)
 - [ModelLite-模型仓库-DDD架构设计-v1.0.md](/docs/architecture/ModelLite-模型仓库-DDD架构设计-v1.0.md)
 - [ModelLite-模型仓库-架构设计-v1.1.md](/docs/architecture/ModelLite-模型仓库-架构设计-v1.1.md)
 

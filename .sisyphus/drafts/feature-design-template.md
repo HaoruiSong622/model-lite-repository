@@ -150,7 +150,7 @@ classDiagram
     }
     
     class VersionStatus {
-        <<ValueObject>>
+        <<enumeration>>
         +NO_WEIGHT
         +UPLOADING
         +AVAILABLE
