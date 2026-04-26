@@ -156,8 +156,11 @@ CREATE TABLE model_version (
     id                  UUID PRIMARY KEY,
     model_id            UUID NOT NULL REFERENCES model(id),
     version_number      INTEGER NOT NULL,
+    source_type         VARCHAR(20) DEFAULT NULL,
     pvc_name            VARCHAR(255) DEFAULT NULL,
     internal_path       VARCHAR(1024) DEFAULT NULL,
+    nfs_server          VARCHAR(255) DEFAULT NULL,
+    nfs_path            VARCHAR(1024) DEFAULT NULL,
     weight_type         VARCHAR(50) DEFAULT NULL,
     is_registered       BOOLEAN NOT NULL DEFAULT FALSE,
     status              VARCHAR(30) NOT NULL DEFAULT 'NoWeight',
@@ -177,8 +180,11 @@ CREATE TABLE model_version (
 
 COMMENT ON TABLE model_version IS '模型版本表，模型的具体可部署实例';
 COMMENT ON COLUMN model_version.version_number IS '版本号，自动递增整数（V1, V2, V3...），不允许跳号';
-COMMENT ON COLUMN model_version.pvc_name IS '权重存储 PVC 名称';
+COMMENT ON COLUMN model_version.source_type IS '存储来源类型：PVC（使用已有PVC）/ NFS（系统自动创建PVC对接NFS）';
+COMMENT ON COLUMN model_version.pvc_name IS '权重存储 PVC 名称；PVC模式为用户提供的已有PVC；NFS模式为系统自动创建';
 COMMENT ON COLUMN model_version.internal_path IS 'PVC 内部路径';
+COMMENT ON COLUMN model_version.nfs_server IS 'NFS 服务器地址（仅 source_type=NFS 时有值）';
+COMMENT ON COLUMN model_version.nfs_path IS 'NFS 共享路径（仅 source_type=NFS 时有值）';
 COMMENT ON COLUMN model_version.weight_type IS '权重数据精度类型（FP16、w8a8等），自动识别';
 COMMENT ON COLUMN model_version.is_registered IS '是否为纳管版本（纳管版本只读挂载）';
 COMMENT ON COLUMN model_version.status IS '版本状态：NoWeight/Uploading/Available/UploadFailed/ValidationFailed/Error';

@@ -18,7 +18,7 @@
 
 **IN（包含）**:
 - Model 聚合根的领域模型实现（含 ModelVersion 实体）
-- 值对象实现：ModelName, VersionNumber, StoragePath, WeightType, ResourceGroup, TrainingMetadata
+- 值对象实现：StoragePath（含 SourcePathType 枚举）, TrainingMetadata；单字段校验内联到聚合根
 - 枚举实现：VersionStatus（复用 Feature 1 已定义的枚举）
 - ModelRepository 仓储接口与 MyBatis 实现
 - ModelApplicationService 应用服务
@@ -88,7 +88,7 @@
 **本特性新增业务规则**:
 - 版本号（version_number）为自动递增整数，无间隔（代码校验 + 数据库唯一约束 `uk_model_version`）
 - 单个模型下版本数量上限 50（代码校验）
-- 版本状态（status）初始值为 `NoWeight`，后续流转由 Feature 4 管理
+- 版本状态（status）初始值为 `NoWeight`，注册模式创建时直接置为 `Available`（纳管成功）
 - `is_locked` 为反规范化字段，实际锁状态由 version_lock 表驱动（Feature 5）
 - `is_registered` 标记版本是否为注册模式（TRUE）或上传模式（FALSE）
 
@@ -119,8 +119,11 @@ erDiagram
         UUID id "版本ID"
         UUID model_id "所属模型ID（FK）"
         INTEGER version_number "版本号（递增整数）"
+        VARCHAR source_type "存储来源类型（PVC/NFS）"
         VARCHAR pvc_name "PVC名称"
         VARCHAR internal_path "内部路径"
+        VARCHAR nfs_server "NFS服务器地址"
+        VARCHAR nfs_path "NFS共享路径"
         VARCHAR weight_type "权重类型"
         BOOLEAN is_registered "是否注册模式"
         VARCHAR status "版本状态"
@@ -225,11 +228,14 @@ CREATE INDEX idx_model_name_trgm ON model USING gin(name gin_trgm_ops);
 | id | UUID | Y | 应用侧生成 | 版本 ID，UUID v4 |
 | model_id | UUID | Y | — | 所属模型 ID（外键引用 model.id） |
 | version_number | INTEGER | Y | — | 版本号，自动递增整数，无间隔，同一模型下唯一 |
-| pvc_name | VARCHAR(255) | N | NULL | PVC 名称（上传模式使用） |
-| internal_path | VARCHAR(1024) | N | NULL | 内部存储路径（上传模式使用） |
+| source_type | VARCHAR(20) | N | NULL | 存储来源类型：`PVC`（使用已有 PVC）/ `NFS`（系统自动创建 PVC 对接 NFS） |
+| pvc_name | VARCHAR(255) | N | NULL | PVC 名称；PVC 模式为用户提供的已有 PVC；NFS 模式为系统自动创建（命名规则 `pvc-{modelId}-v{versionNumber}`） |
+| internal_path | VARCHAR(1024) | N | NULL | PVC 内部路径 |
+| nfs_server | VARCHAR(255) | N | NULL | NFS 服务器地址（如 `10.0.1.100`），仅 NFS 模式填写 |
+| nfs_path | VARCHAR(1024) | N | NULL | NFS 共享路径（如 `/data/models/glm-5`），仅 NFS 模式填写 |
 | weight_type | VARCHAR(50) | N | NULL | 权重类型 |
 | is_registered | BOOLEAN | Y | FALSE | 是否注册模式（TRUE=注册，FALSE=上传） |
-| status | VARCHAR(30) | Y | 'NoWeight' | 版本状态枚举：NoWeight/Uploading/Available/UploadFailed/ValidationFailed/Error |
+| status | VARCHAR(30) | Y | 'NoWeight' | 版本状态枚举：NoWeight/Uploading/Available/UploadFailed/ValidationFailed/Error；注册模式创建时直接置为 Available（纳管成功） |
 | is_locked | BOOLEAN | Y | FALSE | 是否锁定（反规范化字段，实际由 version_lock 表驱动） |
 | train_frame | VARCHAR(100) | N | NULL | 训练框架（如 PyTorch、TensorFlow） |
 | train_type | VARCHAR(100) | N | NULL | 训练类型 |
@@ -276,9 +282,9 @@ classDiagram
 
     class ModelVersion {
         +UUID versionId
-        +VersionNumber versionNumber
+        +Integer versionNumber
         +StoragePath storagePath
-        +WeightType weightType
+        +String weightType
         +VersionStatus status
         +Boolean isRegistered
         +Boolean isLocked
@@ -287,27 +293,19 @@ classDiagram
         +DateTime updateTime
     }
 
-    class ModelName {
-        <<ValueObject>>
-        +String value
-        +validate() void
-    }
-
-    class VersionNumber {
-        <<ValueObject>>
-        +Integer value
-        +next() VersionNumber
-    }
-
     class StoragePath {
         <<ValueObject>>
+        +SourcePathType sourceType
         +String pvcName
         +String internalPath
+        +String nfsServer
+        +String nfsPath
     }
 
-    class WeightType {
-        <<ValueObject>>
-        +String value
+    class SourcePathType {
+        <<enumeration>>
+        PVC
+        NFS
     }
 
     class VersionStatus {
@@ -318,12 +316,6 @@ classDiagram
         UPLOAD_FAILED
         VALIDATION_FAILED
         ERROR
-    }
-
-    class ResourceGroup {
-        <<ValueObject>>
-        +String value
-        +isPublic() Boolean
     }
 
     class TrainingMetadata {
@@ -337,13 +329,10 @@ classDiagram
     }
 
     Model "1" *-- "many" ModelVersion : contains
-    Model --> ModelName : has
-    Model --> ResourceGroup : has
-    ModelVersion --> VersionNumber : has
     ModelVersion --> StoragePath : has
     ModelVersion --> VersionStatus : has
-    ModelVersion --> WeightType : has
     ModelVersion --> TrainingMetadata : has
+    StoragePath --> SourcePathType : has
 ```
 
 ### 3.2 核心类定义
@@ -355,11 +344,11 @@ classDiagram
 | 字段名 | 类型 | 说明 | 约束 |
 |--------|------|------|------|
 | modelId | UUID | 模型唯一标识 | 创建后不可修改 |
-| name | ModelName | 模型名称 | 值对象，长度 1-255，同一分类+类型下唯一，创建后不可修改 |
+| name | String | 模型名称 | 长度 1-255，仅允许字母、数字、中文、下划线、连字符（`^[a-zA-Z0-9\u4e00-\u9fa5_-]+$`），同一分类+类型下唯一，创建后不可修改 |
 | description | String | 模型描述 | 长度 0-2000，可修改 |
 | categoryId | UUID | 分类 ID | 引用有效的 category.id，可修改 |
 | typeId | UUID | 类型 ID | 引用有效的 model_type.id，可修改 |
-| resourceGroup | ResourceGroup | 资源组 | 值对象，创建后不可修改 |
+| resourceGroup | String | 资源组 | 非空，最长 100 字符，特殊值 "public" 表示公共资源组，创建后不可修改 |
 | createUser | String | 创建用户 | 创建后不可修改 |
 | author | String | 作者 | 可选，可修改 |
 | seriesName | String | 系列名 | 可选，可修改 |
@@ -376,7 +365,7 @@ classDiagram
 |--------|------|----------|------|----------|
 | createModel（静态工厂） | name, description, categoryId, typeId, resourceGroup, createUser, author?, seriesName?, modelSize?, maxSeqLength? | Model | 创建新模型（含首个版本） | 前置：分类存在、类型存在、类型属于该分类、名称唯一、资源组容量未满、全局容量未满；后置：创建模型 + 版本号=1 的初始版本（status=NoWeight, isRegistered=false） |
 | modifyMetadata | description?, categoryId?, typeId?, author?, seriesName?, modelSize?, maxSeqLength? | void | 修改模型元数据 | 前置：模型存在；规则：name 和 resourceGroup 不可修改；若修改 categoryId/typeId，需校验新分类+类型下名称唯一、新类型属于新分类 |
-| createVersion | isRegistered, pvcName?, internalPath?, weightType?, trainFrame?, trainType?, trainStrategy?, trainTime?, finalLoss?, sourceVersion? | ModelVersion | 创建新版本 | 前置：版本容量未满（<50）；规则：版本号 = max(现有版本号) + 1；后置：新版本 status=NoWeight |
+| createVersion | isRegistered, storagePath, weightType?, trainingMetadata? | ModelVersion | 创建新版本 | 前置：版本容量未满（<50）；规则：版本号 = max(现有版本号) + 1；后置：注册模式 status=Available（纳管成功），非注册模式 status=NoWeight；NFS 模式由应用服务层创建 PV+PVC 后填充 pvcName |
 | getLatestVersionNumber | — | Integer | 获取当前最大版本号 | 空列表返回 0 |
 | getModelVersion | versionId | ModelVersion | 按 ID 查找版本 | 不存在则抛 VERSION_NOT_FOUND |
 
@@ -385,10 +374,10 @@ classDiagram
 | 字段名 | 类型 | 说明 | 约束 |
 |--------|------|------|------|
 | versionId | UUID | 版本唯一标识 | 创建后不可修改 |
-| versionNumber | VersionNumber | 版本号 | 值对象，自动递增整数，创建后不可修改 |
+| versionNumber | Integer | 版本号 | 自动递增整数，≥1，无间隔，创建后不可修改 |
 | storagePath | StoragePath | 存储路径 | 值对象，可为空 |
-| weightType | WeightType | 权重类型 | 值对象，可为空 |
-| status | VersionStatus | 版本状态 | 枚举，初始 NoWeight |
+| weightType | String | 权重类型 | 可为空，最长 50 字符 |
+| status | VersionStatus | 版本状态 | 注册模式创建时为 Available（纳管成功），非注册模式为 NoWeight |
 | isRegistered | Boolean | 是否注册模式 | 创建时设置，不可修改 |
 | isLocked | Boolean | 是否锁定 | 反规范化字段，Feature 5 管理 |
 | trainingMetadata | TrainingMetadata | 训练元数据 | 值对象，可为空 |
@@ -399,126 +388,68 @@ classDiagram
 
 **Model.createModel（静态工厂方法）**:
 ```java
-public static Model createModel(String name, String description,
-        UUID categoryId, UUID typeId, String resourceGroup, String createUser,
-        String author, String seriesName, Long modelSize, Integer maxSeqLength) {
-    // 前置条件由应用服务层校验：
-    // - 分类存在、类型存在、类型属于该分类
-    // - 名称在分类+类型下唯一
-    // - 资源组容量未满（<100）、全局容量未满（<1000）
-    
-    Model model = new Model();
-    model.modelId = UUID.randomUUID();
-    model.name = new ModelName(name);
-    model.description = description != null ? description : "";
-    model.categoryId = categoryId;
-    model.typeId = typeId;
-    model.resourceGroup = new ResourceGroup(resourceGroup);
-    model.createUser = createUser;
-    model.author = author;
-    model.seriesName = seriesName;
-    model.modelSize = modelSize;
-    model.maxSeqLength = maxSeqLength;
-    model.versions = new ArrayList<>();
-    model.tagIds = new ArrayList<>();
-    
-    // 创建首个版本（版本号 = 1，状态 = NoWeight）
-    ModelVersion firstVersion = ModelVersion.createFirstVersion(model.modelId);
-    model.versions.add(firstVersion);
-    
-    return model;
+// 前置条件由应用服务层校验：
+//   分类存在、类型存在、类型属于该分类、名称在分类+类型下唯一、
+//   资源组容量未满（<100）、全局容量未满（<1000）
+
+public static Model createModel(name, description, categoryId, typeId, 
+        resourceGroup, createUser, author?, seriesName?, modelSize?, maxSeqLength?) {
+    // 赋值：modelId=UUID随机, name=trim后校验字符集, resourceGroup,
+    //       categoryId, typeId, createUser, 可选字段直接赋值
+    // 校验：name 非空且长度 1-255，仅含 [a-zA-Z0-9中文_-]；resourceGroup 非空且 ≤100
+    // 创建首个版本：版本号=1，status=NoWeight，isRegistered=false，storagePath=empty
+    // 返回新 Model 实例
 }
 ```
 
 **Model.createVersion**:
 ```java
-public ModelVersion createVersion(boolean isRegistered,
-        String pvcName, String internalPath, String weightType,
-        String trainFrame, String trainType, String trainStrategy,
-        Long trainTime, String finalLoss, String sourceVersion) {
-    // 前置条件：版本容量校验由应用服务层完成
-    
-    int nextVersionNumber = getLatestVersionNumber() + 1;
-    
-    ModelVersion version = new ModelVersion();
-    version.versionId = UUID.randomUUID();
-    version.versionNumber = new VersionNumber(nextVersionNumber);
-    version.modelId = this.modelId;
-    version.storagePath = new StoragePath(pvcName, internalPath);
-    version.weightType = weightType != null ? new WeightType(weightType) : null;
-    version.status = VersionStatus.NO_WEIGHT;
-    version.isRegistered = isRegistered;
-    version.isLocked = false;
-    version.trainingMetadata = new TrainingMetadata(
-        trainFrame, trainType, trainStrategy, trainTime, finalLoss, sourceVersion);
-    
-    this.versions.add(version);
-    this.updateTime = OffsetDateTime.now();
-    
-    return version;
+// 前置条件：版本容量校验由应用服务层完成（<50）
+
+public ModelVersion createVersion(isRegistered, storagePath, weightType?, trainingMetadata?) {
+    // 赋值：versionId=UUID随机, versionNumber=getNextVersionNumber(),
+    //       isRegistered, storagePath, weightType, isLocked=false,
+    //       trainingMetadata（若 null 则取 empty）
+    // 状态：若 isRegistered=true → status=Available（纳管成功，直接可用）
+    //       若 isRegistered=false → status=NoWeight（等待上传）
+    // 校验：versionNumber ≥ 1 且连续递增
+    // 后置：添加到 versions 列表，更新 updateTime
+    // 返回新 ModelVersion 实例
 }
 ```
 
 **Model.modifyMetadata**:
 ```java
-public void modifyMetadata(String description, UUID categoryId, UUID typeId,
-        String author, String seriesName, Long modelSize, Integer maxSeqLength) {
-    // 注意：name 和 resourceGroup 不可修改 — 由 API 层不暴露字段保证
-    
-    if (description != null) {
-        this.description = description;
-    }
-    if (categoryId != null) {
-        this.categoryId = categoryId;
-    }
-    if (typeId != null) {
-        this.typeId = typeId;
-    }
-    if (author != null) {
-        this.author = author;
-    }
-    if (seriesName != null) {
-        this.seriesName = seriesName;
-    }
-    if (modelSize != null) {
-        this.modelSize = modelSize;
-    }
-    if (maxSeqLength != null) {
-        this.maxSeqLength = maxSeqLength;
-    }
-    
-    this.updateTime = OffsetDateTime.now();
+public void modifyMetadata(description?, categoryId?, typeId?, 
+        author?, seriesName?, modelSize?, maxSeqLength?) {
+    // 不可修改字段（由 API 层不暴露保证）：name, resourceGroup
+    // 赋值：将所有非 null 参数赋值给对应字段
+    // 校验约束（跨聚合校验由 ModelDomainService 完成）：
+    //   若 categoryId/typeId 变更 → 新类型属于新分类、新分类+类型下名称唯一
+    // 后置：更新 updateTime
 }
 ```
 
 **ModelVersion.createFirstVersion（静态工厂方法）**:
 ```java
 static ModelVersion createFirstVersion(UUID modelId) {
-    ModelVersion version = new ModelVersion();
-    version.versionId = UUID.randomUUID();
-    version.versionNumber = new VersionNumber(1);
-    version.modelId = modelId;
-    version.storagePath = StoragePath.empty();
-    version.weightType = null;
-    version.status = VersionStatus.NO_WEIGHT;
-    version.isRegistered = false;
-    version.isLocked = false;
-    version.trainingMetadata = TrainingMetadata.empty();
-    return version;
+    // 赋值：versionId=UUID随机, versionNumber=1, modelId, 
+    //       status=NoWeight, isRegistered=false, isLocked=false
+    // 空值：storagePath=empty, weightType=null, trainingMetadata=empty
 }
 ```
 
 ### 3.3 值对象定义
 
+本设计仅保留**多字段组合型**值对象，单字段校验直接在聚合根方法中完成。
+
 | 值对象名 | 字段名 | 类型 | 说明 | 校验规则 |
 |----------|--------|------|------|----------|
-| ModelName | value | String | 模型名称 | 非空，长度 1-255，不含前后空格，仅允许字母、数字、中文、下划线、连字符（正则：`^[a-zA-Z0-9\\u4e00-\\u9fa5_-]+$`） |
-| VersionNumber | value | Integer | 版本号 | 正整数，≥1，无间隔递增 |
-| StoragePath | pvcName | String | PVC 名称 | 可为空，最长 255 字符 |
-| | internalPath | String | 内部路径 | 可为空，最长 1024 字符 |
-| WeightType | value | String | 权重类型 | 可为空，最长 50 字符 |
-| VersionStatus | — | 枚举 | 版本状态 | NO_WEIGHT / UPLOADING / AVAILABLE / UPLOAD_FAILED / VALIDATION_FAILED / ERROR |
-| ResourceGroup | value | String | 资源组标识 | 非空，最长 100 字符；特殊值 "public" 表示公共资源组 |
+| StoragePath | sourceType | SourcePathType | 存储路径来源类型 | 枚举：PVC / NFS |
+| | pvcName | String | PVC 名称 | PVC 模式必填；NFS 模式为系统自动生成（`pvc-{modelId}-v{versionNumber}`） |
+| | internalPath | String | PVC 内部路径 | 可为空，最长 1024 字符 |
+| | nfsServer | String | NFS 服务器地址 | NFS 模式必填（如 `10.0.1.100` 或 `nfs-server.example.com`），PVC 模式为 null |
+| | nfsPath | String | NFS 共享路径 | NFS 模式必填（如 `/data/models/glm-5`），PVC 模式为 null |
 | TrainingMetadata | trainFrame | String | 训练框架 | 可为空，最长 100 字符 |
 | | trainType | String | 训练类型 | 可为空，最长 100 字符 |
 | | trainStrategy | String | 训练策略 | 可为空，最长 100 字符 |
@@ -526,13 +457,29 @@ static ModelVersion createFirstVersion(UUID modelId) {
 | | finalLoss | String | 最终损失值 | 可为空，最长 100 字符 |
 | | sourceVersion | String | 来源版本 | 可为空，最长 50 字符 |
 
+**枚举定义**:
+
+| 枚举名 | 值 | 说明 |
+|--------|------|------|
+| SourcePathType | PVC | 使用已有 PVC，用户直接提供 pvcName + internalPath |
+| | NFS | 使用 NFS 路径，系统自动创建 PV+PVC 对接 NFS（只读访问模式） |
+
 **值对象实现说明**:
 
-- `ModelName`: 构造函数内校验 value 非空且长度 1-255，自动 trim 前后空格，校验仅含字母、数字、中文、下划线、连字符（正则：`^[a-zA-Z0-9\u4e00-\u9fa5_-]+$`）
-- `VersionNumber`: 构造函数内校验 value ≥ 1；`next()` 方法返回 `new VersionNumber(this.value + 1)`
-- `StoragePath`: `empty()` 静态方法返回两个参数均为 null 的实例
-- `ResourceGroup`: `isPublic()` 方法返回 `"public".equals(this.value)`
+- `StoragePath`:
+  - PVC 模式构造：`StoragePath.ofPvc(pvcName, internalPath)` → sourceType=PVC, nfsServer=null, nfsPath=null
+  - NFS 模式构造：`StoragePath.ofNfs(nfsServer, nfsPath)` → sourceType=NFS, pvcName=null（后续由应用服务填充自动生成的 PVC 名称）
+  - `empty()` 静态方法返回所有字段为 null 的实例
+  - PVC 模式校验：pvcName 非空
+  - NFS 模式校验：nfsServer 非空、nfsPath 非空
 - `TrainingMetadata`: `empty()` 静态方法返回所有字段为 null 的实例
+
+**聚合根内联校验**（替代原单字段 VO）:
+
+- `name`（String）：构造/创建时校验非空、trim、长度 1-255、字符集 `^[a-zA-Z0-9\u4e00-\u9fa5_-]+$`
+- `resourceGroup`（String）：构造时校验非空、长度 ≤100；辅助方法 `isPublicResourceGroup()` 返回 `"public".equals(resourceGroup)`
+- `versionNumber`（Integer）：构造时校验 ≥1；辅助方法 `getNextVersionNumber()` 返回当前最大值 + 1
+- `weightType`（String）：可为空，长度 ≤50
 
 ### 3.4 领域服务
 
@@ -551,40 +498,23 @@ static ModelVersion createFirstVersion(UUID modelId) {
 
 **伪代码 — validateModelCreation**:
 ```java
-public void validateModelCreation(String name, UUID categoryId, UUID typeId, 
-        String resourceGroup) {
-    // 1. 分类存在性校验
-    Category category = categoryRepository.findById(categoryId)
-            .orElseThrow(() -> new ModelLiteException(
-                    ErrorCode.CATEGORY_NOT_FOUND, "分类不存在"));
-    
-    // 2. 类型存在性及归属校验
-    ModelType modelType = category.getModelTypes().stream()
-            .filter(mt -> mt.getTypeId().equals(typeId))
-            .findFirst()
-            .orElseThrow(() -> new ModelLiteException(
-                    ErrorCode.MODEL_TYPE_NOT_BELONG_TO_CATEGORY, 
-                    "模型类型不存在或不属于该分类"));
-    
-    // 3. 名称唯一性校验（同分类+同类型下）
-    if (modelRepository.existsByCategoryAndTypeAndName(categoryId, typeId, name)) {
-        throw new ModelLiteException(
-                ErrorCode.MODEL_NAME_EXISTS, "模型名称已存在");
-    }
-    
-    // 4. 资源组容量校验（单资源组 ≤ 100）
-    long groupCount = modelRepository.countByResourceGroup(resourceGroup);
-    if (groupCount >= 100) {
-        throw new ModelLiteException(
-                ErrorCode.MODEL_CAPACITY_EXCEEDED, "资源组下模型数量已达上限");
-    }
-    
-    // 5. 全局容量校验（全局 ≤ 1000）
-    long totalCount = modelRepository.countAll();
-    if (totalCount >= 1000) {
-        throw new ModelLiteException(
-                ErrorCode.MODEL_GLOBAL_CAPACITY_EXCEEDED, "全局模型数量已达上限");
-    }
+public void validateModelCreation(name, categoryId, typeId, resourceGroup) {
+    // 1. 分类存在性 → categoryRepository.findById → 不存在抛 CATEGORY_NOT_FOUND
+    // 2. 类型存在性及归属 → category.getModelTypes().find(typeId) → 不存在抛 MODEL_TYPE_NOT_BELONG_TO_CATEGORY
+    // 3. 名称唯一性 → modelRepository.existsByCategoryAndTypeAndName → 存在抛 MODEL_NAME_EXISTS
+    // 4. 资源组容量 → modelRepository.countByResourceGroup ≥ 100 抛 MODEL_CAPACITY_EXCEEDED
+    // 5. 全局容量 → modelRepository.countAll ≥ 1000 抛 MODEL_GLOBAL_CAPACITY_EXCEEDED
+}
+```
+
+**伪代码 — validateModelModification**:
+```java
+public void validateModelModification(modelId, categoryId, typeId) {
+    // 1. 模型存在性 → modelRepository.findById → 不存在抛 MODEL_NOT_FOUND
+    // 2. 若 categoryId 或 typeId 变更：
+    //    a. 新分类存在性 → CATEGORY_NOT_FOUND
+    //    b. 新类型存在性及归属 → MODEL_TYPE_NOT_BELONG_TO_CATEGORY
+    //    c. 新分类+类型下名称唯一性 → MODEL_NAME_EXISTS
 }
 ```
 
@@ -675,6 +605,8 @@ public void validateModelCreation(String name, UUID categoryId, UUID typeId,
 | 0102030 | VERSION_INVALID_CREATE_MODE | 400 | 无效的版本创建模式 |
 | 0102031 | MODEL_TAG_NOT_FOUND | 404 | 标签不存在 |
 | 0102032 | MODEL_TAG_COUNT_EXCEEDED | 400 | 模型标签数量超出限制（≤20） |
+| 0102033 | STORAGE_PATH_PVC_NAME_REQUIRED | 400 | PVC 模式下 pvcName 不能为空 |
+| 0102034 | STORAGE_PATH_NFS_REQUIRED | 400 | NFS 模式下 nfsServer 和 nfsPath 不能为空 |
 
 ---
 
@@ -816,9 +748,10 @@ public void validateModelCreation(String name, UUID categoryId, UUID typeId,
                 "status": "Available",
                 "isRegistered": true,
                 "isLocked": false,
-                "weightType": "safetensors",
+                "sourceType": "PVC",
                 "pvcName": "model-pvc",
                 "internalPath": "/models/glm-5-9b/v2",
+                "weightType": "safetensors",
                 "trainingMetadata": {
                     "trainFrame": "PyTorch",
                     "trainType": "SFT",
@@ -1043,16 +976,39 @@ public void validateModelCreation(String name, UUID categoryId, UUID typeId,
 |--------|------|------|------|
 | modelId | UUID | Y | 模型 ID |
 
-**Request Body**:
+**Request Body — PVC 模式**:
 ```json
 {
-    "weightType": "safetensors",            // 权重类型，可选，最长50字符
-    "trainFrame": "PyTorch",                // 训练框架，可选，最长100字符
-    "trainType": "SFT",                     // 训练类型，可选，最长100字符
-    "trainStrategy": "LoRA",                // 训练策略，可选，最长100字符
-    "trainTime": 36000,                     // 训练时长（秒），可选，≥0
-    "finalLoss": "0.0023",                  // 最终损失值，可选，最长100字符
-    "sourceVersion": "v1.0-base"            // 来源版本，可选，最长50字符
+    "sourceType": "PVC",
+    "pvcName": "existing-pvc-name",            // 已有 PVC 名称，必填
+    "internalPath": "/models/glm-5-9b/v2",     // PVC 内路径，可选
+    "weightType": "safetensors",               // 权重类型，可选，最长50字符
+    "trainingMetadata": {                      // 训练元数据，可选
+        "trainFrame": "PyTorch",
+        "trainType": "SFT",
+        "trainStrategy": "LoRA",
+        "trainTime": 36000,
+        "finalLoss": "0.0023",
+        "sourceVersion": "v1.0-base"
+    }
+}
+```
+
+**Request Body — NFS 模式**:
+```json
+{
+    "sourceType": "NFS",
+    "nfsServer": "10.0.1.100",                 // NFS 服务器地址，必填
+    "nfsPath": "/data/models/glm-5-9b/v2",    // NFS 共享路径，必填
+    "weightType": "safetensors",               // 权重类型，可选，最长50字符
+    "trainingMetadata": {                      // 训练元数据，可选
+        "trainFrame": "PyTorch",
+        "trainType": "SFT",
+        "trainStrategy": "LoRA",
+        "trainTime": 36000,
+        "finalLoss": "0.0023",
+        "sourceVersion": "v1.0-base"
+    }
 }
 ```
 
@@ -1065,9 +1021,13 @@ public void validateModelCreation(String name, UUID categoryId, UUID typeId,
         "id": "uuid-version-new",
         "modelId": "uuid-model-001",
         "versionNumber": 3,
-        "status": "NoWeight",
+        "status": "Available",
         "isRegistered": true,
         "isLocked": false,
+        "sourceType": "NFS",
+        "pvcName": "pvc-uuid-model-001-v3",
+        "nfsServer": "10.0.1.100",
+        "nfsPath": "/data/models/glm-5-9b/v3",
         "weightType": "safetensors",
         "trainingMetadata": {
             "trainFrame": "PyTorch",
@@ -1091,10 +1051,14 @@ public void validateModelCreation(String name, UUID categoryId, UUID typeId,
 |--------|-------------|------|
 | 0102001 | 404 | 模型不存在 |
 | 0102009 | 400 | 版本数量超出限制（≥50） |
+| 0102033 | 400 | PVC 模式下 pvcName 不能为空 |
+| 0102034 | 400 | NFS 模式下 nfsServer 和 nfsPath 不能为空 |
 
 **业务规则**:
 - **前置条件**: 模型存在、版本容量未满（<50）
-- **后置条件**: 版本号 = 当前最大版本号 + 1，status=NoWeight，isRegistered=true
+- **后置条件**: 版本号 = 当前最大版本号 + 1，注册模式 status=Available（纳管成功），非注册模式 status=NoWeight
+- **PVC 模式**（sourceType=PVC）: 直接使用用户提供的 pvcName + internalPath
+- **NFS 模式**（sourceType=NFS）: 系统自动创建 PV + PVC 对接 NFS（PVC 命名 `pvc-{modelId}-v{versionNumber}`），PVC 访问模式设为 **ReadOnlyMany**
 - **RBAC**: 只有模型所属资源组的用户可创建版本
 
 ---
@@ -1126,9 +1090,10 @@ public void validateModelCreation(String name, UUID categoryId, UUID typeId,
         "status": "Available",
         "isRegistered": true,
         "isLocked": false,
-        "weightType": "safetensors",
+        "sourceType": "PVC",
         "pvcName": "model-pvc",
         "internalPath": "/models/glm-5-9b/v2",
+        "weightType": "safetensors",
         "trainingMetadata": {
             "trainFrame": "PyTorch",
             "trainType": "SFT",
@@ -1450,7 +1415,7 @@ sequenceDiagram
 
 ---
 
-### 5.5 创建版本
+### 5.5 创建版本（注册模式）
 
 ```mermaid
 sequenceDiagram
@@ -1458,10 +1423,11 @@ sequenceDiagram
     participant Api as ModelApi
     participant AppSvc as ModelApplicationService
     participant ModelRepo as ModelRepository
+    participant K8s as Kubernetes API
     participant DB as 数据库
 
     User->>Api: POST /v2/ui/models/{modelId}/versions
-    Api->>Api: 参数校验
+    Api->>Api: 参数校验（sourceType + 对应必填字段）
     Api->>AppSvc: createVersion(modelId, CreateVersionRequest)
     
     AppSvc->>ModelRepo: findByIdWithVersions(modelId)
@@ -1479,11 +1445,20 @@ sequenceDiagram
         AppSvc-->>Api: throw VERSION_CAPACITY_EXCEEDED(0102009)
     end
     
-    AppSvc->>AppSvc: model.createVersion(isRegistered=true, ...)
-    Note over AppSvc: 版本号 = max(现有版本号) + 1
+    AppSvc->>AppSvc: model.createVersion(isRegistered=true, storagePath, ...)
+    Note over AppSvc: 版本号 = max(现有版本号) + 1<br/>注册模式：status=Available（纳管成功）
+    
+    alt sourceType = NFS
+        AppSvc->>AppSvc: 生成 PVC 名称: pvc-{modelId}-v{versionNumber}
+        AppSvc->>K8s: 创建 PV（对接 NFS nfsServer:nfsPath）
+        K8s-->>AppSvc: PV created
+        AppSvc->>K8s: 创建 PVC（绑定 PV，访问模式 ReadOnlyMany）
+        K8s-->>AppSvc: PVC created
+        Note over AppSvc,K8s: PVC 命名规则: pvc-{modelId}-v{versionNumber}
+    end
     
     AppSvc->>ModelRepo: updateVersion(newVersion)
-    ModelRepo->>DB: INSERT model_version
+    ModelRepo->>DB: INSERT model_version (含 source_type, pvc_name, nfs_server, nfs_path)
     DB-->>ModelRepo: OK
     ModelRepo-->>AppSvc: saved
     
@@ -1495,18 +1470,23 @@ sequenceDiagram
 1. 加载模型及其全部版本列表
 2. RBAC 权限校验（仅资源组内用户可创建版本）
 3. 版本容量校验（<50）
-4. 调用聚合根 createVersion 方法（版本号自动递增）
-5. 持久化新版本
+4. 调用聚合根 createVersion 方法（版本号自动递增，注册模式 status=Available）
+5. **NFS 模式额外步骤**: 生成 PVC 名称 → 创建 PV 对接 NFS → 创建 PVC（ReadOnlyMany）绑定 PV
+6. **PVC 模式**: 直接使用用户提供的已有 PVC 名称
+7. 持久化新版本（含完整存储路径信息，注册模式 status=Available）
 
 ---
 
 ### 5.6 版本状态机
 
-> 版本状态在 Feature 1 中已定义，本特性仅创建初始状态 NoWeight 的版本。完整状态流转由 Feature 4 实现。
+> 版本状态在 Feature 1 中已定义。本特性覆盖两条路径：
+> - **创建模型时自动创建的首个版本**：初始状态 NoWeight（无权重文件）
+> - **注册模式创建版本**：纳管外部 NFS/PVC 成功后直接变为 Available
 
 ```mermaid
 stateDiagram-v2
-    [*] --> NoWeight: 创建版本（注册模式/创建模型自动创建）
+    [*] --> NoWeight: 创建模型自动创建首版本
+    [*] --> Available: 注册模式创建版本（纳管 NFS/PVC）
     NoWeight --> Uploading: 开始上传（Feature 4）
     Uploading --> Available: 上传成功（Feature 4）
     Uploading --> UploadFailed: 上传失败（Feature 4）
@@ -1521,9 +1501,10 @@ stateDiagram-v2
 
 | 当前状态 | 触发条件 | 目标状态 | 说明 |
 |----------|----------|----------|------|
-| — | 创建模型 / 创建版本 | NoWeight | 所有新版本的初始状态 |
+| — | 创建模型（自动创建首版本） | NoWeight | 首版本无权重文件 |
+| — | 注册模式创建版本 + NFS/PVC 对接成功 | Available | 纳管不复制文件，对接成功即可用 |
 
-> 完整状态转换规则见 Feature 4 设计文档。
+> Feature 4 负责的转换：NoWeight→Uploading、Uploading→Available/UploadFailed、Available→ValidationFailed、ValidationFailed→Available、NoWeight→Error。
 
 ---
 
@@ -1593,7 +1574,7 @@ stateDiagram-v2
 - `model.versions.size()` 等于 2
 - 新版本的 `versionNumber.value` 等于 2
 - 新版本的 `isRegistered` 等于 true
-- 新版本的 `status` 等于 VersionStatus.NO_WEIGHT
+- 新版本的 `status` 等于 VersionStatus.AVAILABLE（注册模式纳管成功，直接可用）
 - 新版本的 `trainingMetadata.trainFrame` 等于 "PyTorch"
 - `model.updateTime` 已更新
 
@@ -1609,6 +1590,7 @@ stateDiagram-v2
 
 **Then**:
 - 新版本的 `versionNumber.value` 等于 4
+- 新版本的 `status` 等于 VersionStatus.NO_WEIGHT（非注册模式，等待上传）
 - 版本号无间隔
 
 ---
@@ -1643,22 +1625,22 @@ stateDiagram-v2
 
 ---
 
-#### 6.1.8 ModelName — 值对象校验
+#### 6.1.8 Model.createModel — name 字段校验
 
 **Given**:
 - 各种边界输入：null, "", "   ", 1 字符, 255 字符, 256 字符, 含前后空格, 含非法字符, 中文/下划线/连字符
 
 **When**:
-- 分别调用 `new ModelName(input)`
+- 分别调用 `Model.createModel(input, "desc", catId, typeId, "group", "user", null, null, null, null)`
 
 **Then**:
 - null: 抛出异常
 - "": 抛出异常
 - "   ": 抛出异常（trim 后为空）
-- 1 字符: 正常创建，value 为该字符
+- 1 字符: 正常创建，name 为该字符
 - 255 字符: 正常创建
 - 256 字符: 抛出异常
-- " name ": 正常创建，value 等于 "name"（已 trim）
+- " name ": 正常创建，name 等于 "name"（已 trim）
 - "glm-5_9b": 正常创建（含字母、数字、连字符、下划线）
 - "模型-v1": 正常创建（含中文）
 - "glm@5": 抛出异常（含非法字符 @）
@@ -1666,35 +1648,71 @@ stateDiagram-v2
 
 ---
 
-#### 6.1.9 VersionNumber — 值对象校验
-
-**Given**:
-- 各种输入：0, -1, 1, 100
-
-**When**:
-- 分别调用 `new VersionNumber(input)`
-
-**Then**:
-- 0: 抛出异常
-- -1: 抛出异常
-- 1: 正常创建，value 等于 1
-- 100: 正常创建，value 等于 100
-
----
-
-#### 6.1.10 ResourceGroup — 值对象校验
+#### 6.1.9 Model.createModel — resourceGroup 字段校验
 
 **Given**:
 - 各种输入：null, "", "team-a", "public"
 
 **When**:
-- 分别调用 `new ResourceGroup(input)`
+- 分别调用 `Model.createModel("test", "desc", catId, typeId, input, "user", null, null, null, null)`
 
 **Then**:
 - null: 抛出异常
 - "": 抛出异常
-- "team-a": 正常创建，isPublic() 返回 false
-- "public": 正常创建，isPublic() 返回 true
+- "team-a": 正常创建，isPublicResourceGroup() 返回 false
+- "public": 正常创建，isPublicResourceGroup() 返回 true
+
+---
+
+#### 6.1.10 StoragePath — PVC 模式构造
+
+**Given**:
+- PVC 模式参数：pvcName="my-pvc", internalPath="/data"
+
+**When**:
+- 调用 `StoragePath.ofPvc("my-pvc", "/data")`
+
+**Then**:
+- sourceType = PVC, pvcName = "my-pvc", internalPath = "/data", nfsServer = null, nfsPath = null
+
+---
+
+#### 6.1.10a StoragePath — NFS 模式构造
+
+**Given**:
+- NFS 模式参数：nfsServer="10.0.1.100", nfsPath="/data/models"
+
+**When**:
+- 调用 `StoragePath.ofNfs("10.0.1.100", "/data/models")`
+
+**Then**:
+- sourceType = NFS, nfsServer = "10.0.1.100", nfsPath = "/data/models", pvcName = null, internalPath = null
+
+---
+
+#### 6.1.10b StoragePath — PVC 模式 pvcName 为空拒绝
+
+**Given**:
+- PVC 模式参数：pvcName=null
+
+**When**:
+- 调用 `StoragePath.ofPvc(null, "/data")`
+
+**Then**:
+- 抛出异常（PVC 模式下 pvcName 必填）
+
+---
+
+#### 6.1.10c StoragePath — NFS 模式字段为空拒绝
+
+**Given**:
+- NFS 模式参数：nfsServer=null, nfsPath="/data"
+
+**When**:
+- 调用 `StoragePath.ofNfs(null, "/data")`
+
+**Then**:
+- 抛出异常（NFS 模式下 nfsServer 和 nfsPath 必填）
 
 ---
 
@@ -2201,6 +2219,8 @@ stateDiagram-v2
 - 请求参数:
 ```json
 {
+    "sourceType": "PVC",
+    "pvcName": "existing-pvc",
     "weightType": "safetensors",
     "trainFrame": "PyTorch",
     "trainType": "SFT"
@@ -2213,7 +2233,7 @@ stateDiagram-v2
 **Then**:
 - HTTP 状态码 = 200
 - Response.data.versionNumber = 3
-- Response.data.status = "NoWeight"
+- Response.data.status = "Available"（注册模式纳管成功）
 - Response.data.isRegistered = true
 - Response.data.trainingMetadata.trainFrame = "PyTorch"
 
@@ -2246,36 +2266,6 @@ stateDiagram-v2
 **Then**:
 - HTTP 状态码 = 404
 - Response.code = 0102006
-
----
-
-### 6.4 性能测试
-
-#### 6.4.1 模型列表查询性能
-
-**Given**:
-- 数据库中有 1000 个模型
-- 每个模型平均 5 个版本、3 个标签
-
-**When**:
-- 调用 `GET /v2/ui/models?page=1&pageSize=50`
-
-**Then**:
-- 响应时间 ≤ 500ms（从请求发出到完整响应接收）
-- Response.data.items.size() = 50
-
----
-
-#### 6.4.2 模型详情查询性能
-
-**Given**:
-- 数据库中有目标模型，含 10 个版本
-
-**When**:
-- 调用 `GET /v2/ui/models/{modelId}`
-
-**Then**:
-- 响应时间 ≤ 200ms
 
 ---
 
