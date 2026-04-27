@@ -162,7 +162,7 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
             when(modelRepository.findTagIdsByModelId(modelId)).thenReturn(List.of());
 
-            ModelResponse response = service.getModel(modelId);
+            ModelResponse response = service.getModel(modelId, "default");
 
             assertNotNull(response);
             assertEquals("TestModel", response.getName());
@@ -178,9 +178,40 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.empty());
 
             ModelLiteException exception = assertThrows(ModelLiteException.class,
-                    () -> service.getModel(modelId));
+                    () -> service.getModel(modelId, "default"));
 
             assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw MODEL_NOT_FOUND when resource group not visible")
+        void should_throw_whenResourceGroupNotVisible() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "private-group", null, "author", "series", "1000", 512L);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.getModel(modelId, "other-group"));
+
+            assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should return model when resource group is public")
+        void should_returnModel_whenResourceGroupIsPublic() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "public", null, "author", "series", "1000", 512L);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            when(modelRepository.findTagIdsByModelId(modelId)).thenReturn(List.of());
+
+            ModelResponse response = service.getModel(modelId, null);
+
+            assertNotNull(response);
+            assertEquals("TestModel", response.getName());
         }
     }
 
@@ -209,7 +240,7 @@ class ModelApplicationServiceTest {
             doNothing().when(modelDomainService).validateModelModification(any(), any(), any());
             doNothing().when(modelRepository).update(any(Model.class));
 
-            ModelResponse response = service.modifyModel(modelId, request);
+            ModelResponse response = service.modifyModel(modelId, request, "default");
 
             assertNotNull(response);
             assertEquals("New Description", response.getDescription());
@@ -241,7 +272,7 @@ class ModelApplicationServiceTest {
             doNothing().when(tagRepository).addModelTag(any(), any());
             doNothing().when(modelRepository).update(any(Model.class));
 
-            ModelResponse response = service.modifyModel(modelId, request);
+            ModelResponse response = service.modifyModel(modelId, request, "default");
 
             assertNotNull(response);
             verify(tagRepository).removeModelTag(modelId, oldTagId);
@@ -260,7 +291,26 @@ class ModelApplicationServiceTest {
             when(modelRepository.findById(modelId)).thenReturn(Optional.empty());
 
             ModelLiteException exception = assertThrows(ModelLiteException.class,
-                    () -> service.modifyModel(modelId, request));
+                    () -> service.modifyModel(modelId, request, "default"));
+
+            assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw MODEL_NOT_FOUND when resource group not visible on modify")
+        void should_throw_whenResourceGroupNotVisibleOnModify() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "private-group", null, "author", "series", "1000", 512L);
+
+            ModelModifyRequest request = new ModelModifyRequest();
+            request.setCategoryId(model.getCategoryId());
+            request.setTypeId(model.getTypeId());
+
+            when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.modifyModel(modelId, request, "other-group"));
 
             assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
         }
@@ -271,10 +321,9 @@ class ModelApplicationServiceTest {
     class ListModelsTests {
 
         @Test
-        @DisplayName("should return models with resource groups")
+        @DisplayName("should return models with resource groups filter")
         void should_returnModels_withResourceGroups() {
             ModelQueryCondition condition = new ModelQueryCondition();
-            condition.setResourceGroups(List.of("default", "admin"));
 
             Model model1 = Model.createModel("Model1", "desc1", UUID.randomUUID(),
                     UUID.randomUUID(), "default", null, "author1", "series1", "1000", 512L);
@@ -288,23 +337,23 @@ class ModelApplicationServiceTest {
             pageResult.setPageSize(10);
             pageResult.setTotalPages(1);
 
-            when(modelRepository.findByResourceGroups(condition.getResourceGroups(), condition))
+            when(modelRepository.findByResourceGroups(any(List.class), any(ModelQueryCondition.class)))
                     .thenReturn(pageResult);
 
-            PageResult<ModelListResponse> response = service.listModels(condition);
+            PageResult<ModelListResponse> response = service.listModels(condition, "default");
 
             assertNotNull(response);
             assertEquals(2, response.getItems().size());
             assertEquals(2, response.getTotal());
             assertEquals("Model1", response.getItems().get(0).getName());
             assertEquals("Model2", response.getItems().get(1).getName());
+            verify(modelRepository).findByResourceGroups(any(List.class), any(ModelQueryCondition.class));
         }
 
         @Test
-        @DisplayName("should return models without resource groups")
-        void should_returnModels_withoutResourceGroups() {
+        @DisplayName("should return models with public only when userResourceGroup is null")
+        void should_returnModels_withPublicOnly() {
             ModelQueryCondition condition = new ModelQueryCondition();
-            condition.setResourceGroups(null);
 
             PageResult<Model> pageResult = new PageResult<>();
             pageResult.setItems(List.of());
@@ -313,13 +362,15 @@ class ModelApplicationServiceTest {
             pageResult.setPageSize(10);
             pageResult.setTotalPages(0);
 
-            when(modelRepository.findByCondition(condition)).thenReturn(pageResult);
+            when(modelRepository.findByResourceGroups(any(List.class), any(ModelQueryCondition.class)))
+                    .thenReturn(pageResult);
 
-            PageResult<ModelListResponse> response = service.listModels(condition);
+            PageResult<ModelListResponse> response = service.listModels(condition, null);
 
             assertNotNull(response);
             assertTrue(response.getItems().isEmpty());
             assertEquals(0, response.getTotal());
+            verify(modelRepository).findByResourceGroups(any(List.class), any(ModelQueryCondition.class));
         }
     }
 
@@ -343,7 +394,7 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
             doNothing().when(modelRepository).updateVersion(any(ModelVersion.class));
 
-            VersionResponse response = service.createVersion(modelId, request);
+            VersionResponse response = service.createVersion(modelId, request, "default");
 
             assertNotNull(response);
             assertEquals(2, response.getVersionNumber());
@@ -376,7 +427,7 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
             doNothing().when(modelRepository).updateVersion(any(ModelVersion.class));
 
-            VersionResponse response = service.createVersion(modelId, request);
+            VersionResponse response = service.createVersion(modelId, request, "default");
 
             assertNotNull(response);
             assertEquals(2, response.getVersionNumber());
@@ -402,7 +453,7 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
             doNothing().when(modelRepository).updateVersion(any(ModelVersion.class));
 
-            VersionResponse response = service.createVersion(modelId, request);
+            VersionResponse response = service.createVersion(modelId, request, "default");
 
             assertNotNull(response);
             assertEquals(2, response.getVersionNumber());
@@ -418,7 +469,7 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.empty());
 
             ModelLiteException exception = assertThrows(ModelLiteException.class,
-                    () -> service.createVersion(modelId, request));
+                    () -> service.createVersion(modelId, request, "default"));
 
             assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
         }
@@ -440,9 +491,27 @@ class ModelApplicationServiceTest {
             when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
 
             ModelLiteException exception = assertThrows(ModelLiteException.class,
-                    () -> service.createVersion(modelId, request));
+                    () -> service.createVersion(modelId, request, "default"));
 
             assertEquals(ErrorCode.VERSION_CAPACITY_EXCEEDED, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw MODEL_NOT_FOUND when resource group not visible on createVersion")
+        void should_throw_whenResourceGroupNotVisibleOnCreateVersion() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "private-group", null, "author", "series", "1000", 512L);
+
+            VersionCreateRequest request = new VersionCreateRequest();
+            request.setWeightType("FP32");
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.createVersion(modelId, request, "other-group"));
+
+            assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
         }
     }
 
@@ -455,12 +524,15 @@ class ModelApplicationServiceTest {
         void should_returnVersion_successfully() {
             UUID modelId = UUID.randomUUID();
             UUID versionId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
             ModelVersion version = new ModelVersion(versionId, 1, StoragePath.empty(),
                     "FP32", VersionStatus.AVAILABLE, true, false, null);
 
+            when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
             when(modelRepository.findVersionById(modelId, versionId)).thenReturn(Optional.of(version));
 
-            VersionResponse response = service.getVersion(modelId, versionId);
+            VersionResponse response = service.getVersion(modelId, versionId, "default");
 
             assertNotNull(response);
             assertEquals(versionId, response.getId());
@@ -473,13 +545,46 @@ class ModelApplicationServiceTest {
         void should_throw_whenVersionNotFound() {
             UUID modelId = UUID.randomUUID();
             UUID versionId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
 
+            when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
             when(modelRepository.findVersionById(modelId, versionId)).thenReturn(Optional.empty());
 
             ModelLiteException exception = assertThrows(ModelLiteException.class,
-                    () -> service.getVersion(modelId, versionId));
+                    () -> service.getVersion(modelId, versionId, "default"));
 
             assertEquals(ErrorCode.VERSION_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw MODEL_NOT_FOUND when model does not exist for getVersion")
+        void should_throw_whenModelNotFoundOnGetVersion() {
+            UUID modelId = UUID.randomUUID();
+            UUID versionId = UUID.randomUUID();
+
+            when(modelRepository.findById(modelId)).thenReturn(Optional.empty());
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.getVersion(modelId, versionId, "default"));
+
+            assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw MODEL_NOT_FOUND when resource group not visible on getVersion")
+        void should_throw_whenResourceGroupNotVisibleOnGetVersion() {
+            UUID modelId = UUID.randomUUID();
+            UUID versionId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "private-group", null, "author", "series", "1000", 512L);
+
+            when(modelRepository.findById(modelId)).thenReturn(Optional.of(model));
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.getVersion(modelId, versionId, "other-group"));
+
+            assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
         }
     }
 }

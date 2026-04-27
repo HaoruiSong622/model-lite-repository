@@ -92,9 +92,10 @@ class ModelApiTest {
     @Test
     void getModel_shouldReturnModel() throws Exception {
         ModelResponse response = createModelResponse(MODEL_ID, "TestModel");
-        when(modelApplicationService.getModel(MODEL_ID)).thenReturn(response);
+        when(modelApplicationService.getModel(MODEL_ID, "default")).thenReturn(response);
 
-        mockMvc.perform(get("/v2/ui/models/{id}", MODEL_ID))
+        mockMvc.perform(get("/v2/ui/models/{id}", MODEL_ID)
+                        .param("resourceGroup", "default"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.id").value(MODEL_ID.toString()))
@@ -103,7 +104,7 @@ class ModelApiTest {
 
     @Test
     void getModel_shouldReturn404_whenNotFound() throws Exception {
-        when(modelApplicationService.getModel(MODEL_ID))
+        when(modelApplicationService.getModel(MODEL_ID, null))
                 .thenThrow(new ModelLiteException("0102001", "Model not found"));
 
         mockMvc.perform(get("/v2/ui/models/{id}", MODEL_ID))
@@ -121,9 +122,10 @@ class ModelApiTest {
 
         ModelResponse response = createModelResponse(MODEL_ID, "TestModel");
         response.setDescription("Updated description");
-        when(modelApplicationService.modifyModel(eq(MODEL_ID), any(ModelModifyRequest.class))).thenReturn(response);
+        when(modelApplicationService.modifyModel(eq(MODEL_ID), any(ModelModifyRequest.class), eq("default"))).thenReturn(response);
 
         mockMvc.perform(patch("/v2/ui/models/{id}", MODEL_ID)
+                        .param("resourceGroup", "default")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -137,7 +139,7 @@ class ModelApiTest {
         ModelModifyRequest request = new ModelModifyRequest();
         request.setDescription("Updated description");
 
-        when(modelApplicationService.modifyModel(eq(MODEL_ID), any(ModelModifyRequest.class)))
+        when(modelApplicationService.modifyModel(eq(MODEL_ID), any(ModelModifyRequest.class), eq(null)))
                 .thenThrow(new ModelLiteException("0102001", "Model not found"));
 
         mockMvc.perform(patch("/v2/ui/models/{id}", MODEL_ID)
@@ -161,13 +163,14 @@ class ModelApiTest {
         pageResult.setPageSize(10);
         pageResult.setTotalPages(1);
 
-        when(modelApplicationService.listModels(any(ModelQueryCondition.class))).thenReturn(pageResult);
+        when(modelApplicationService.listModels(any(ModelQueryCondition.class), any(String.class))).thenReturn(pageResult);
 
         mockMvc.perform(get("/v2/ui/models")
                         .param("categoryId", CATEGORY_ID.toString())
                         .param("typeId", TYPE_ID.toString())
                         .param("page", "0")
-                        .param("pageSize", "10"))
+                        .param("pageSize", "10")
+                        .param("resourceGroup", "default"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.data.items[0].id").value(MODEL_ID.toString()))
@@ -184,9 +187,10 @@ class ModelApiTest {
         request.setWeightType("FP32");
 
         VersionResponse response = createVersionResponse(VERSION_ID, 1);
-        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class))).thenReturn(response);
+        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class), eq("default"))).thenReturn(response);
 
         mockMvc.perform(post("/v2/ui/models/{id}/versions", MODEL_ID)
+                        .param("resourceGroup", "default")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -201,7 +205,7 @@ class ModelApiTest {
         request.setSourceType("PVC");
         request.setPvcName("test-pvc");
 
-        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class)))
+        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class), eq(null)))
                 .thenThrow(new ModelLiteException("0102001", "Model not found"));
 
         mockMvc.perform(post("/v2/ui/models/{id}/versions", MODEL_ID)
@@ -215,7 +219,7 @@ class ModelApiTest {
     @Test
     void getVersion_shouldReturnVersion() throws Exception {
         VersionResponse response = createVersionResponse(VERSION_ID, 1);
-        when(modelApplicationService.getVersion(MODEL_ID, VERSION_ID)).thenReturn(response);
+        when(modelApplicationService.getVersion(eq(MODEL_ID), eq(VERSION_ID), any())).thenReturn(response);
 
         mockMvc.perform(get("/v2/ui/models/{id}/versions/{versionId}", MODEL_ID, VERSION_ID))
                 .andExpect(status().isOk())
@@ -226,7 +230,7 @@ class ModelApiTest {
 
     @Test
     void getVersion_shouldReturn404_whenNotFound() throws Exception {
-        when(modelApplicationService.getVersion(MODEL_ID, VERSION_ID))
+        when(modelApplicationService.getVersion(eq(MODEL_ID), eq(VERSION_ID), any()))
                 .thenThrow(new ModelLiteException("0102006", "Version not found"));
 
         mockMvc.perform(get("/v2/ui/models/{id}/versions/{versionId}", MODEL_ID, VERSION_ID))

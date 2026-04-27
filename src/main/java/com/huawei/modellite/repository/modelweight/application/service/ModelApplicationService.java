@@ -85,10 +85,12 @@ public class ModelApplicationService {
         return toModelResponse(model);
     }
 
-    public ModelResponse getModel(UUID modelId) {
+    public ModelResponse getModel(UUID modelId, String userResourceGroup) {
         Model model = modelRepository.findByIdWithVersions(modelId)
                 .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
                         "模型不存在: " + modelId));
+
+        checkResourceGroupVisibility(model, userResourceGroup);
 
         List<UUID> tagIds = modelRepository.findTagIdsByModelId(modelId);
         model.setTagIds(tagIds);
@@ -96,10 +98,12 @@ public class ModelApplicationService {
         return toModelResponse(model);
     }
 
-    public ModelResponse modifyModel(UUID modelId, ModelModifyRequest request) {
+    public ModelResponse modifyModel(UUID modelId, ModelModifyRequest request, String userResourceGroup) {
         Model model = modelRepository.findById(modelId)
                 .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
                         "模型不存在: " + modelId));
+
+        checkResourceGroupVisibility(model, userResourceGroup);
 
         modelDomainService.validateModelModification(modelId,
                 request.getCategoryId(), request.getTypeId());
@@ -135,13 +139,9 @@ public class ModelApplicationService {
         return toModelResponse(model);
     }
 
-    public PageResult<ModelListResponse> listModels(ModelQueryCondition condition) {
-        PageResult<Model> modelPage;
-        if (condition.getResourceGroups() != null && !condition.getResourceGroups().isEmpty()) {
-            modelPage = modelRepository.findByResourceGroups(condition.getResourceGroups(), condition);
-        } else {
-            modelPage = modelRepository.findByCondition(condition);
-        }
+    public PageResult<ModelListResponse> listModels(ModelQueryCondition condition, String userResourceGroup) {
+        condition.setResourceGroups(getVisibleResourceGroups(userResourceGroup));
+        PageResult<Model> modelPage = modelRepository.findByResourceGroups(condition.getResourceGroups(), condition);
 
         PageResult<ModelListResponse> responsePage = new PageResult<>();
         responsePage.setItems(modelPage.getItems().stream()
@@ -156,10 +156,12 @@ public class ModelApplicationService {
     }
 
     @Transactional
-    public VersionResponse createVersion(UUID modelId, VersionCreateRequest request) {
+    public VersionResponse createVersion(UUID modelId, VersionCreateRequest request, String userResourceGroup) {
         Model model = modelRepository.findByIdWithVersions(modelId)
                 .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
                         "模型不存在: " + modelId));
+
+        checkResourceGroupVisibility(model, userResourceGroup);
 
         StoragePath storagePath = buildStoragePath(request);
 
@@ -194,7 +196,13 @@ public class ModelApplicationService {
         return toVersionResponse(version, modelId);
     }
 
-    public VersionResponse getVersion(UUID modelId, UUID versionId) {
+    public VersionResponse getVersion(UUID modelId, UUID versionId, String userResourceGroup) {
+        Model model = modelRepository.findById(modelId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
+                        "模型不存在: " + modelId));
+
+        checkResourceGroupVisibility(model, userResourceGroup);
+
         ModelVersion version = modelRepository.findVersionById(modelId, versionId)
                 .orElseThrow(() -> new ModelLiteException(ErrorCode.VERSION_NOT_FOUND,
                         "版本不存在: " + versionId));
@@ -209,6 +217,22 @@ public class ModelApplicationService {
             return StoragePath.ofNfs(request.getNfsServer(), request.getNfsPath());
         } else {
             return StoragePath.empty();
+        }
+    }
+
+    private List<String> getVisibleResourceGroups(String userResourceGroup) {
+        if (userResourceGroup == null) {
+            return List.of("public");
+        }
+        return List.of(userResourceGroup, "public");
+    }
+
+    private void checkResourceGroupVisibility(Model model, String userResourceGroup) {
+        List<String> visibleGroups = getVisibleResourceGroups(userResourceGroup);
+        if (model.getResourceGroup() == null
+                || !visibleGroups.contains(model.getResourceGroup())) {
+            throw new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
+                    "模型不存在: " + model.getModelId());
         }
     }
 

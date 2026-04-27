@@ -40,16 +40,19 @@ public class ModelApi {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BaseResponse<ModelResponse>> getModel(@PathVariable UUID id) {
-        ModelResponse model = modelApplicationService.getModel(id);
+    public ResponseEntity<BaseResponse<ModelResponse>> getModel(
+            @PathVariable UUID id,
+            @RequestParam(required = false) String resourceGroup) {
+        ModelResponse model = modelApplicationService.getModel(id, resourceGroup);
         return ResponseEntity.ok(BaseResponse.success(model));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<BaseResponse<ModelResponse>> modifyModel(
             @PathVariable UUID id,
-            @RequestBody ModelModifyRequest request) {
-        ModelResponse model = modelApplicationService.modifyModel(id, request);
+            @RequestBody ModelModifyRequest request,
+            @RequestParam(required = false) String resourceGroup) {
+        ModelResponse model = modelApplicationService.modifyModel(id, request, resourceGroup);
         return ResponseEntity.ok(BaseResponse.success(model));
     }
 
@@ -62,7 +65,8 @@ public class ModelApi {
             @RequestParam(required = false) Integer page,
             @RequestParam(required = false) Integer pageSize,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String sortOrder) {
+            @RequestParam(required = false) String sortOrder,
+            @RequestParam(required = false) String resourceGroup) {
         ModelQueryCondition condition = new ModelQueryCondition();
         condition.setCategoryId(categoryId);
         condition.setTypeId(typeId);
@@ -73,23 +77,25 @@ public class ModelApi {
         condition.setSortBy(sortBy);
         condition.setSortOrder(sortOrder);
 
-        PageResult<ModelListResponse> result = modelApplicationService.listModels(condition);
+        PageResult<ModelListResponse> result = modelApplicationService.listModels(condition, resourceGroup);
         return ResponseEntity.ok(BaseResponse.success(result));
     }
 
     @PostMapping("/{id}/versions")
     public ResponseEntity<BaseResponse<VersionResponse>> createVersion(
             @PathVariable UUID id,
-            @RequestBody VersionCreateRequest request) {
-        VersionResponse version = modelApplicationService.createVersion(id, request);
+            @RequestBody VersionCreateRequest request,
+            @RequestParam(required = false) String resourceGroup) {
+        VersionResponse version = modelApplicationService.createVersion(id, request, resourceGroup);
         return ResponseEntity.ok(BaseResponse.success(version));
     }
 
     @GetMapping("/{id}/versions/{versionId}")
     public ResponseEntity<BaseResponse<VersionResponse>> getVersion(
             @PathVariable UUID id,
-            @PathVariable UUID versionId) {
-        VersionResponse version = modelApplicationService.getVersion(id, versionId);
+            @PathVariable UUID versionId,
+            @RequestParam(required = false) String resourceGroup) {
+        VersionResponse version = modelApplicationService.getVersion(id, versionId, resourceGroup);
         return ResponseEntity.ok(BaseResponse.success(version));
     }
 }
