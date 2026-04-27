@@ -48,7 +48,6 @@ public class ModelApplicationService {
         this.tagRepository = tagRepository;
     }
 
-    @Transactional
     public ModelResponse createModel(ModelCreateRequest request) {
         modelDomainService.validateModelCreation(
                 request.getName(),
@@ -96,7 +95,6 @@ public class ModelApplicationService {
         return toModelResponse(model);
     }
 
-    @Transactional
     public ModelResponse modifyModel(UUID modelId, ModelModifyRequest request) {
         Model model = modelRepository.findById(modelId)
                 .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,

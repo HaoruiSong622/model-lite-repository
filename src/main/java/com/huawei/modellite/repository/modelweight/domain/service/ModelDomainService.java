@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
 public class ModelDomainService {
 
     private static final long MAX_MODELS_PER_RESOURCE_GROUP = 100;

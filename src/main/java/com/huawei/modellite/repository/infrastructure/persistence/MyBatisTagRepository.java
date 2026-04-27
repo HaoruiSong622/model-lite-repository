@@ -12,11 +12,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public class TagRepositoryImpl implements TagRepository {
+public class MyBatisTagRepository implements TagRepository {
 
     private final TagMapper tagMapper;
 
-    public TagRepositoryImpl(TagMapper tagMapper) {
+    public MyBatisTagRepository(TagMapper tagMapper) {
         this.tagMapper = tagMapper;
     }
 

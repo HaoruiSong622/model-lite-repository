@@ -12,11 +12,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public class CategoryRepositoryImpl implements CategoryRepository {
+public class MyBatisCategoryRepository implements CategoryRepository {
 
     private final CategoryMapper categoryMapper;
 
-    public CategoryRepositoryImpl(CategoryMapper categoryMapper) {
+    public MyBatisCategoryRepository(CategoryMapper categoryMapper) {
         this.categoryMapper = categoryMapper;
     }
 

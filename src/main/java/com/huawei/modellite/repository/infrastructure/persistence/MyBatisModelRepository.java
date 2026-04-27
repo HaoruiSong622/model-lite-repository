@@ -14,11 +14,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public class ModelRepositoryImpl implements ModelRepository {
+public class MyBatisModelRepository implements ModelRepository {
 
     private final ModelMapper modelMapper;
 
-    public ModelRepositoryImpl(ModelMapper modelMapper) {
+    public MyBatisModelRepository(ModelMapper modelMapper) {
         this.modelMapper = modelMapper;
     }
 
