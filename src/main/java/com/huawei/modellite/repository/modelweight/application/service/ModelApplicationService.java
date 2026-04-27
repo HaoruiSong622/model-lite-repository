@@ -1,0 +1,303 @@
+package com.huawei.modellite.repository.modelweight.application.service;
+
+import com.huawei.modellite.repository.common.enums.ErrorCode;
+import com.huawei.modellite.repository.common.enums.VersionStatus;
+import com.huawei.modellite.repository.common.exception.ModelLiteException;
+import com.huawei.modellite.repository.modelweight.application.dto.ModelCreateRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.ModelListResponse;
+import com.huawei.modellite.repository.modelweight.application.dto.ModelModifyRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.ModelResponse;
+import com.huawei.modellite.repository.modelweight.application.dto.TagResponse;
+import com.huawei.modellite.repository.modelweight.application.dto.TrainingMetadataDto;
+import com.huawei.modellite.repository.modelweight.application.dto.VersionCreateRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.VersionResponse;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.model.StoragePath;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.model.TrainingMetadata;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.tag.Tag;
+import com.huawei.modellite.repository.modelweight.domain.repository.CategoryRepository;
+import com.huawei.modellite.repository.modelweight.domain.repository.ModelRepository;
+import com.huawei.modellite.repository.modelweight.domain.repository.TagRepository;
+import com.huawei.modellite.repository.modelweight.domain.service.ModelDomainService;
+import com.huawei.modellite.repository.modelweight.domain.vo.ModelQueryCondition;
+import com.huawei.modellite.repository.modelweight.domain.vo.PageResult;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class ModelApplicationService {
+
+    private final ModelRepository modelRepository;
+    private final ModelDomainService modelDomainService;
+    private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
+
+    public ModelApplicationService(ModelRepository modelRepository,
+                                   ModelDomainService modelDomainService,
+                                   CategoryRepository categoryRepository,
+                                   TagRepository tagRepository) {
+        this.modelRepository = modelRepository;
+        this.modelDomainService = modelDomainService;
+        this.categoryRepository = categoryRepository;
+        this.tagRepository = tagRepository;
+    }
+
+    @Transactional
+    public ModelResponse createModel(ModelCreateRequest request) {
+        modelDomainService.validateModelCreation(
+                request.getName(),
+                request.getCategoryId(),
+                request.getTypeId(),
+                request.getResourceGroup()
+        );
+
+        Model model = Model.createModel(
+                request.getName(),
+                request.getDescription(),
+                request.getCategoryId(),
+                request.getTypeId(),
+                request.getResourceGroup(),
+                null,
+                request.getAuthor(),
+                request.getSeriesName(),
+                request.getModelSize() != null ? request.getModelSize().toString() : null,
+                request.getMaxSeqLength() != null ? request.getMaxSeqLength().longValue() : null
+        );
+
+        if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
+            model.setTagIds(request.getTagIds());
+        }
+
+        modelRepository.save(model);
+
+        if (request.getTagIds() != null) {
+            for (UUID tagId : request.getTagIds()) {
+                tagRepository.addModelTag(model.getModelId(), tagId);
+            }
+        }
+
+        return toModelResponse(model);
+    }
+
+    public ModelResponse getModel(UUID modelId) {
+        Model model = modelRepository.findByIdWithVersions(modelId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
+                        "模型不存在: " + modelId));
+
+        List<UUID> tagIds = modelRepository.findTagIdsByModelId(modelId);
+        model.setTagIds(tagIds);
+
+        return toModelResponse(model);
+    }
+
+    @Transactional
+    public ModelResponse modifyModel(UUID modelId, ModelModifyRequest request) {
+        Model model = modelRepository.findById(modelId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
+                        "模型不存在: " + modelId));
+
+        modelDomainService.validateModelModification(modelId,
+                request.getCategoryId(), request.getTypeId());
+
+        model.modifyMetadata(
+                request.getDescription(),
+                request.getAuthor(),
+                request.getSeriesName(),
+                request.getModelSize() != null ? request.getModelSize().toString() : null,
+                request.getMaxSeqLength() != null ? request.getMaxSeqLength().longValue() : null
+        );
+
+        if (request.getTagIds() != null) {
+            List<UUID> currentTagIds = modelRepository.findTagIdsByModelId(modelId);
+
+            for (UUID tagId : currentTagIds) {
+                if (!request.getTagIds().contains(tagId)) {
+                    tagRepository.removeModelTag(modelId, tagId);
+                }
+            }
+
+            for (UUID tagId : request.getTagIds()) {
+                if (!currentTagIds.contains(tagId)) {
+                    tagRepository.addModelTag(modelId, tagId);
+                }
+            }
+
+            model.setTagIds(request.getTagIds());
+        }
+
+        modelRepository.update(model);
+
+        return toModelResponse(model);
+    }
+
+    public PageResult<ModelListResponse> listModels(ModelQueryCondition condition) {
+        PageResult<Model> modelPage;
+        if (condition.getResourceGroups() != null && !condition.getResourceGroups().isEmpty()) {
+            modelPage = modelRepository.findByResourceGroups(condition.getResourceGroups(), condition);
+        } else {
+            modelPage = modelRepository.findByCondition(condition);
+        }
+
+        PageResult<ModelListResponse> responsePage = new PageResult<>();
+        responsePage.setItems(modelPage.getItems().stream()
+                .map(this::toModelListResponse)
+                .toList());
+        responsePage.setTotal(modelPage.getTotal());
+        responsePage.setPage(modelPage.getPage());
+        responsePage.setPageSize(modelPage.getPageSize());
+        responsePage.setTotalPages(modelPage.getTotalPages());
+
+        return responsePage;
+    }
+
+    @Transactional
+    public VersionResponse createVersion(UUID modelId, VersionCreateRequest request) {
+        Model model = modelRepository.findByIdWithVersions(modelId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
+                        "模型不存在: " + modelId));
+
+        StoragePath storagePath = buildStoragePath(request);
+
+        TrainingMetadata trainingMetadata = null;
+        if (request.getTrainingMetadata() != null) {
+            TrainingMetadataDto dto = request.getTrainingMetadata();
+            trainingMetadata = new TrainingMetadata(
+                    dto.getTrainFrame(),
+                    dto.getTrainType(),
+                    dto.getTrainStrategy(),
+                    dto.getTrainTime(),
+                    dto.getFinalLoss(),
+                    dto.getSourceVersion()
+            );
+        }
+
+        VersionStatus status = VersionStatus.NO_WEIGHT;
+        if (storagePath != null && storagePath.getSourceType() != null) {
+            status = VersionStatus.AVAILABLE;
+        }
+
+        ModelVersion version = model.createVersion(
+                storagePath,
+                request.getWeightType(),
+                status,
+                false,
+                trainingMetadata
+        );
+
+        modelRepository.updateVersion(version);
+
+        return toVersionResponse(version, modelId);
+    }
+
+    public VersionResponse getVersion(UUID modelId, UUID versionId) {
+        ModelVersion version = modelRepository.findVersionById(modelId, versionId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.VERSION_NOT_FOUND,
+                        "版本不存在: " + versionId));
+
+        return toVersionResponse(version, modelId);
+    }
+
+    private StoragePath buildStoragePath(VersionCreateRequest request) {
+        if ("PVC".equalsIgnoreCase(request.getSourceType())) {
+            return StoragePath.ofPvc(request.getPvcName(), request.getInternalPath());
+        } else if ("NFS".equalsIgnoreCase(request.getSourceType())) {
+            return StoragePath.ofNfs(request.getNfsServer(), request.getNfsPath());
+        } else {
+            return StoragePath.empty();
+        }
+    }
+
+    private ModelResponse toModelResponse(Model model) {
+        ModelResponse response = new ModelResponse();
+        response.setId(model.getModelId());
+        response.setName(model.getName());
+        response.setDescription(model.getDescription());
+        response.setCategoryId(model.getCategoryId());
+        response.setTypeId(model.getTypeId());
+        response.setResourceGroup(model.getResourceGroup());
+        response.setCreateUser(model.getCreateUser());
+        response.setAuthor(model.getAuthor());
+        response.setSeriesName(model.getSeriesName());
+        response.setModelSize(model.getModelSize() != null ? Long.valueOf(model.getModelSize()) : null);
+        response.setMaxSeqLength(model.getMaxSeqLength() != null ? model.getMaxSeqLength().intValue() : null);
+        response.setVersions(model.getVersions().stream()
+                .map(v -> toVersionResponse(v, model.getModelId()))
+                .toList());
+        response.setTags(toTagResponses(model.getTagIds()));
+        return response;
+    }
+
+    private ModelListResponse toModelListResponse(Model model) {
+        ModelListResponse response = new ModelListResponse();
+        response.setId(model.getModelId());
+        response.setName(model.getName());
+        response.setDescription(model.getDescription());
+        response.setCategoryId(model.getCategoryId());
+        response.setTypeId(model.getTypeId());
+        response.setResourceGroup(model.getResourceGroup());
+        response.setAuthor(model.getAuthor());
+        response.setSeriesName(model.getSeriesName());
+        response.setModelSize(model.getModelSize() != null ? Long.valueOf(model.getModelSize()) : null);
+        response.setMaxSeqLength(model.getMaxSeqLength() != null ? model.getMaxSeqLength().intValue() : null);
+        response.setVersionCount(model.getVersions().size());
+        if (!model.getVersions().isEmpty()) {
+            response.setLatestVersion(toVersionResponse(
+                    model.getVersions().get(model.getVersions().size() - 1), model.getModelId()));
+        }
+        response.setTags(toTagResponses(model.getTagIds()));
+        return response;
+    }
+
+    private VersionResponse toVersionResponse(ModelVersion version, UUID modelId) {
+        VersionResponse response = new VersionResponse();
+        response.setId(version.getVersionId());
+        response.setModelId(modelId);
+        response.setVersionNumber(version.getVersionNumber());
+        response.setStatus(version.getStatus() != null ? version.getStatus().getDbValue() : null);
+        response.setIsRegistered(version.getIsRegistered());
+        response.setIsLocked(version.getIsLocked());
+        if (version.getStoragePath() != null) {
+            StoragePath sp = version.getStoragePath();
+            response.setSourceType(sp.getSourceType() != null ? sp.getSourceType().name() : null);
+            response.setPvcName(sp.getPvcName());
+            response.setInternalPath(sp.getInternalPath());
+            response.setNfsServer(sp.getNfsServer());
+            response.setNfsPath(sp.getNfsPath());
+        }
+        response.setWeightType(version.getWeightType());
+        if (version.getTrainingMetadata() != null) {
+            response.setTrainingMetadata(toTrainingMetadataDto(version.getTrainingMetadata()));
+        }
+        return response;
+    }
+
+    private TrainingMetadataDto toTrainingMetadataDto(TrainingMetadata metadata) {
+        TrainingMetadataDto dto = new TrainingMetadataDto();
+        dto.setTrainFrame(metadata.getTrainFrame());
+        dto.setTrainType(metadata.getTrainType());
+        dto.setTrainStrategy(metadata.getTrainStrategy());
+        dto.setTrainTime(metadata.getTrainTime());
+        dto.setFinalLoss(metadata.getFinalLoss());
+        dto.setSourceVersion(metadata.getSourceVersion());
+        return dto;
+    }
+
+    private List<TagResponse> toTagResponses(List<UUID> tagIds) {
+        if (tagIds == null || tagIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return tagIds.stream()
+                .map(tagId -> {
+                    TagResponse tagResponse = new TagResponse();
+                    tagResponse.setId(tagId);
+                    return tagResponse;
+                })
+                .toList();
+    }
+}

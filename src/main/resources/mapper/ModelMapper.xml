@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huawei.modellite.repository.infrastructure.persistence.mapper.ModelMapper">
+
+    <resultMap id="modelSimpleResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model" autoMapping="false">
+        <id property="modelId" column="id" javaType="java.util.UUID"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="categoryId" column="category_id" javaType="java.util.UUID"/>
+        <result property="typeId" column="type_id" javaType="java.util.UUID"/>
+        <result property="resourceGroup" column="resource_group"/>
+        <result property="createUser" column="create_user"/>
+        <result property="author" column="author"/>
+        <result property="seriesName" column="series_name"/>
+        <result property="modelSize" column="model_size"/>
+        <result property="maxSeqLength" column="max_seq_length"/>
+    </resultMap>
+
+    <resultMap id="modelWithVersionsResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model" autoMapping="false">
+        <id property="modelId" column="m_id" javaType="java.util.UUID"/>
+        <result property="name" column="m_name"/>
+        <result property="description" column="m_description"/>
+        <result property="categoryId" column="m_category_id" javaType="java.util.UUID"/>
+        <result property="typeId" column="m_type_id" javaType="java.util.UUID"/>
+        <result property="resourceGroup" column="m_resource_group"/>
+        <result property="createUser" column="m_create_user"/>
+        <result property="author" column="m_author"/>
+        <result property="seriesName" column="m_series_name"/>
+        <result property="modelSize" column="m_model_size"/>
+        <result property="maxSeqLength" column="m_max_seq_length"/>
+        <collection property="versions" ofType="com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion" autoMapping="false">
+            <id property="versionId" column="v_id" javaType="java.util.UUID"/>
+            <result property="versionNumber" column="v_version_number"/>
+            <result property="weightType" column="v_weight_type"/>
+            <result property="status" column="v_status"/>
+            <result property="isRegistered" column="v_is_registered"/>
+            <result property="isLocked" column="v_is_locked"/>
+        </collection>
+    </resultMap>
+
+    <resultMap id="modelVersionResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion" autoMapping="false">
+        <id property="versionId" column="id" javaType="java.util.UUID"/>
+        <result property="versionNumber" column="version_number"/>
+        <result property="weightType" column="weight_type"/>
+        <result property="status" column="status"/>
+        <result property="isRegistered" column="is_registered"/>
+        <result property="isLocked" column="is_locked"/>
+    </resultMap>
+
+    <insert id="insertModel">
+        INSERT INTO model (id, name, description, category_id, type_id, resource_group, create_user, author, series_name, model_size, max_seq_length, deleted, create_time, update_time)
+        VALUES (#{modelId}, #{name}, #{description}, #{categoryId}, #{typeId}, #{resourceGroup}, #{createUser}, #{author}, #{seriesName}, #{modelSize}, #{maxSeqLength}, FALSE, NOW(), NOW())
+    </insert>
+
+    <insert id="insertModelVersion">
+        INSERT INTO model_version (id, model_id, version_number, pvc_name, internal_path, source_type, nfs_server, nfs_path, weight_type, is_registered, status, is_locked, train_frame, train_type, train_strategy, train_time, final_loss, source_version, deleted, create_time, update_time)
+        VALUES (
+            #{version.versionId}, #{modelId}, #{version.versionNumber},
+            <choose><when test="version.storagePath != null">#{version.storagePath.pvcName}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.storagePath != null">#{version.storagePath.internalPath}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.storagePath != null">#{version.storagePath.sourceType}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.storagePath != null">#{version.storagePath.nfsServer}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.storagePath != null">#{version.storagePath.nfsPath}</when><otherwise>NULL</otherwise></choose>,
+            #{version.weightType}, #{version.isRegistered}, #{version.status}, #{version.isLocked},
+            <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainFrame}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainType}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainStrategy}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainTime}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.finalLoss}</when><otherwise>NULL</otherwise></choose>,
+            <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.sourceVersion}</when><otherwise>NULL</otherwise></choose>,
+            FALSE, NOW(), NOW()
+        )
+    </insert>
+
+    <insert id="insertModelTag">
+        INSERT INTO model_tag (id, model_id, tag_id, create_time)
+        VALUES (#{id}, #{modelId}, #{tagId}, NOW())
+    </insert>
+
+    <select id="selectById" resultMap="modelSimpleResultMap">
+        SELECT id, name, description, category_id, type_id, resource_group, create_user, author, series_name, model_size, max_seq_length, create_time, update_time
+        FROM model
+        WHERE id = #{modelId}
+    </select>
+
+    <select id="selectByIdWithVersions" resultMap="modelWithVersionsResultMap">
+        SELECT
+            m.id AS m_id,
+            m.name AS m_name,
+            m.description AS m_description,
+            m.category_id AS m_category_id,
+            m.type_id AS m_type_id,
+            m.resource_group AS m_resource_group,
+            m.create_user AS m_create_user,
+            m.author AS m_author,
+            m.series_name AS m_series_name,
+            m.model_size AS m_model_size,
+            m.max_seq_length AS m_max_seq_length,
+            mv.id AS v_id,
+            mv.version_number AS v_version_number,
+            mv.weight_type AS v_weight_type,
+            mv.status AS v_status,
+            mv.is_registered AS v_is_registered,
+            mv.is_locked AS v_is_locked
+        FROM model m
+        LEFT JOIN model_version mv ON m.id = mv.model_id
+        WHERE m.id = #{modelId}
+    </select>
+
+    <select id="selectVersionById" resultMap="modelVersionResultMap">
+        SELECT id, model_id, version_number, pvc_name, internal_path, source_type, nfs_server, nfs_path, weight_type, is_registered, status, is_locked, train_frame, train_type, train_strategy, train_time, final_loss, source_version, create_time, update_time
+        FROM model_version
+        WHERE id = #{versionId} AND model_id = #{modelId}
+    </select>
+
+    <select id="selectAll" resultMap="modelSimpleResultMap">
+        SELECT id, name, description, category_id, type_id, resource_group, create_user, author, series_name, model_size, max_seq_length, create_time, update_time
+        FROM model
+    </select>
+
+    <select id="selectByCondition" resultMap="modelSimpleResultMap">
+        <bind name="pageSizeVal" value="condition.pageSize != null ? condition.pageSize : 10"/>
+        <bind name="pageVal" value="condition.page != null ? condition.page : 1"/>
+        <bind name="offsetVal" value="(pageVal - 1) * pageSizeVal"/>
+        SELECT id, name, description, category_id, type_id, resource_group, create_user, author, series_name, model_size, max_seq_length, create_time, update_time
+        FROM model
+        <where>
+            <if test="condition.categoryId != null">AND category_id = #{condition.categoryId}</if>
+            <if test="condition.typeId != null">AND type_id = #{condition.typeId}</if>
+            <if test="condition.keyword != null and condition.keyword != ''">
+                AND (name LIKE CONCAT('%', #{condition.keyword}, '%') OR description LIKE CONCAT('%', #{condition.keyword}, '%'))
+            </if>
+            <if test="condition.tagId != null">
+                AND id IN (SELECT model_id FROM model_tag WHERE tag_id = #{condition.tagId})
+            </if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{pageSizeVal} OFFSET #{offsetVal}
+    </select>
+
+    <select id="countByCondition" resultType="long">
+        SELECT COUNT(*)
+        FROM model
+        <where>
+            <if test="condition.categoryId != null">AND category_id = #{condition.categoryId}</if>
+            <if test="condition.typeId != null">AND type_id = #{condition.typeId}</if>
+            <if test="condition.keyword != null and condition.keyword != ''">
+                AND (name LIKE CONCAT('%', #{condition.keyword}, '%') OR description LIKE CONCAT('%', #{condition.keyword}, '%'))
+            </if>
+            <if test="condition.tagId != null">
+                AND id IN (SELECT model_id FROM model_tag WHERE tag_id = #{condition.tagId})
+            </if>
+        </where>
+    </select>
+
+    <select id="selectByResourceGroups" resultMap="modelSimpleResultMap">
+        <bind name="pageSizeVal" value="condition.pageSize != null ? condition.pageSize : 10"/>
+        <bind name="pageVal" value="condition.page != null ? condition.page : 1"/>
+        <bind name="offsetVal" value="(pageVal - 1) * pageSizeVal"/>
+        SELECT id, name, description, category_id, type_id, resource_group, create_user, author, series_name, model_size, max_seq_length, create_time, update_time
+        FROM model
+        <where>
+            resource_group IN
+            <foreach collection="resourceGroups" item="rg" open="(" separator="," close=")">#{rg}</foreach>
+            <if test="condition.categoryId != null">AND category_id = #{condition.categoryId}</if>
+            <if test="condition.typeId != null">AND type_id = #{condition.typeId}</if>
+            <if test="condition.keyword != null and condition.keyword != ''">
+                AND (name LIKE CONCAT('%', #{condition.keyword}, '%') OR description LIKE CONCAT('%', #{condition.keyword}, '%'))
+            </if>
+            <if test="condition.tagId != null">
+                AND id IN (SELECT model_id FROM model_tag WHERE tag_id = #{condition.tagId})
+            </if>
+        </where>
+        ORDER BY create_time DESC
+        LIMIT #{pageSizeVal} OFFSET #{offsetVal}
+    </select>
+
+    <select id="countByResourceGroups" resultType="long">
+        SELECT COUNT(*)
+        FROM model
+        <where>
+            resource_group IN
+            <foreach collection="resourceGroups" item="rg" open="(" separator="," close=")">#{rg}</foreach>
+            <if test="condition.categoryId != null">AND category_id = #{condition.categoryId}</if>
+            <if test="condition.typeId != null">AND type_id = #{condition.typeId}</if>
+            <if test="condition.keyword != null and condition.keyword != ''">
+                AND (name LIKE CONCAT('%', #{condition.keyword}, '%') OR description LIKE CONCAT('%', #{condition.keyword}, '%'))
+            </if>
+            <if test="condition.tagId != null">
+                AND id IN (SELECT model_id FROM model_tag WHERE tag_id = #{condition.tagId})
+            </if>
+        </where>
+    </select>
+
+    <select id="existsByCategoryAndTypeAndName" resultType="int">
+        SELECT COUNT(*) FROM model WHERE category_id = #{categoryId} AND type_id = #{typeId} AND name = #{name}
+    </select>
+
+    <select id="countByResourceGroup" resultType="long">
+        SELECT COUNT(*) FROM model WHERE resource_group = #{resourceGroup}
+    </select>
+
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*) FROM model
+    </select>
+
+    <update id="updateModel">
+        UPDATE model
+        SET name = #{name},
+            description = #{description},
+            category_id = #{categoryId},
+            type_id = #{typeId},
+            resource_group = #{resourceGroup},
+            create_user = #{createUser},
+            author = #{author},
+            series_name = #{seriesName},
+            model_size = #{modelSize},
+            max_seq_length = #{maxSeqLength},
+            update_time = NOW()
+        WHERE id = #{modelId}
+    </update>
+
+    <update id="updateModelVersion">
+        UPDATE model_version
+        SET version_number = #{version.versionNumber},
+            pvc_name = <choose><when test="version.storagePath != null">#{version.storagePath.pvcName}</when><otherwise>NULL</otherwise></choose>,
+            internal_path = <choose><when test="version.storagePath != null">#{version.storagePath.internalPath}</when><otherwise>NULL</otherwise></choose>,
+            source_type = <choose><when test="version.storagePath != null">#{version.storagePath.sourceType}</when><otherwise>NULL</otherwise></choose>,
+            nfs_server = <choose><when test="version.storagePath != null">#{version.storagePath.nfsServer}</when><otherwise>NULL</otherwise></choose>,
+            nfs_path = <choose><when test="version.storagePath != null">#{version.storagePath.nfsPath}</when><otherwise>NULL</otherwise></choose>,
+            weight_type = #{version.weightType},
+            is_registered = #{version.isRegistered},
+            status = #{version.status},
+            is_locked = #{version.isLocked},
+            train_frame = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainFrame}</when><otherwise>NULL</otherwise></choose>,
+            train_type = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainType}</when><otherwise>NULL</otherwise></choose>,
+            train_strategy = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainStrategy}</when><otherwise>NULL</otherwise></choose>,
+            train_time = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainTime}</when><otherwise>NULL</otherwise></choose>,
+            final_loss = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.finalLoss}</when><otherwise>NULL</otherwise></choose>,
+            source_version = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.sourceVersion}</when><otherwise>NULL</otherwise></choose>,
+            update_time = NOW()
+        WHERE id = #{version.versionId}
+    </update>
+
+    <select id="selectTagIdsByModelId" resultType="java.util.UUID">
+        SELECT tag_id FROM model_tag WHERE model_id = #{modelId}
+    </select>
+
+    <select id="selectVersionsByModelId" resultMap="modelVersionResultMap">
+        SELECT id, model_id, version_number, pvc_name, internal_path, source_type, nfs_server, nfs_path, weight_type, is_registered, status, is_locked, train_frame, train_type, train_strategy, train_time, final_loss, source_version, create_time, update_time
+        FROM model_version
+        WHERE model_id = #{modelId}
+    </select>
+
+</mapper>
