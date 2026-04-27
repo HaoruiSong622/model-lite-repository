@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huawei.modellite.repository.infrastructure.persistence.mapper.CategoryMapper">
+
+    <resultMap id="categorySimpleResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.category.Category" autoMapping="false">
+        <id property="categoryId" column="id" javaType="java.util.UUID"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="isBuiltIn" column="is_builtin"/>
+    </resultMap>
+
+    <resultMap id="categoryWithTypesResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.category.Category" autoMapping="false">
+        <id property="categoryId" column="c_id" javaType="java.util.UUID"/>
+        <result property="name" column="c_name"/>
+        <result property="description" column="c_description"/>
+        <result property="isBuiltIn" column="c_is_builtin"/>
+        <collection property="modelTypes" ofType="com.huawei.modellite.repository.modelweight.domain.aggregate.category.ModelType" autoMapping="false">
+            <id property="typeId" column="mt_id" javaType="java.util.UUID"/>
+            <result property="name" column="mt_name"/>
+            <result property="description" column="mt_description"/>
+            <result property="isBuiltIn" column="mt_is_builtin"/>
+        </collection>
+    </resultMap>
+
+    <insert id="insertCategory" parameterType="com.huawei.modellite.repository.modelweight.domain.aggregate.category.Category">
+        INSERT INTO category (id, name, description, is_builtin, create_time, update_time)
+        VALUES (#{categoryId}, #{name}, #{description}, #{isBuiltIn}, NOW(), NOW())
+    </insert>
+
+    <insert id="insertModelType">
+        INSERT INTO model_type (id, category_id, name, description, is_builtin, create_time, update_time)
+        VALUES (#{modelType.typeId}, #{categoryId}, #{modelType.name}, #{modelType.description}, #{modelType.isBuiltIn}, NOW(), NOW())
+    </insert>
+
+    <select id="selectById" resultMap="categorySimpleResultMap">
+        SELECT id, name, description, is_builtin, create_time, update_time
+        FROM category
+        WHERE id = #{categoryId}
+    </select>
+
+    <select id="selectByIdWithTypes" resultMap="categoryWithTypesResultMap">
+        SELECT
+            c.id AS c_id,
+            c.name AS c_name,
+            c.description AS c_description,
+            c.is_builtin AS c_is_builtin,
+            mt.id AS mt_id,
+            mt.name AS mt_name,
+            mt.description AS mt_description,
+            mt.is_builtin AS mt_is_builtin
+        FROM category c
+        LEFT JOIN model_type mt ON c.id = mt.category_id
+        WHERE c.id = #{categoryId}
+    </select>
+
+    <select id="selectAll" resultMap="categorySimpleResultMap">
+        SELECT id, name, description, is_builtin, create_time, update_time
+        FROM category
+    </select>
+
+    <select id="selectAllWithTypes" resultMap="categoryWithTypesResultMap">
+        SELECT
+            c.id AS c_id,
+            c.name AS c_name,
+            c.description AS c_description,
+            c.is_builtin AS c_is_builtin,
+            mt.id AS mt_id,
+            mt.name AS mt_name,
+            mt.description AS mt_description,
+            mt.is_builtin AS mt_is_builtin
+        FROM category c
+        LEFT JOIN model_type mt ON c.id = mt.category_id
+    </select>
+
+    <select id="countByName" resultType="int">
+        SELECT COUNT(*) FROM category WHERE name = #{name}
+    </select>
+
+    <select id="countModelByCategoryId" resultType="int">
+        SELECT COUNT(*) FROM model WHERE category_id = #{categoryId}
+    </select>
+
+    <select id="countModelByTypeId" resultType="int">
+        SELECT COUNT(*) FROM model WHERE type_id = #{typeId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM category WHERE id = #{categoryId}
+    </delete>
+
+    <delete id="deleteModelTypesByCategoryId">
+        DELETE FROM model_type WHERE category_id = #{categoryId}
+    </delete>
+
+    <delete id="deleteModelTypeById">
+        DELETE FROM model_type WHERE id = #{typeId}
+    </delete>
+
+</mapper>

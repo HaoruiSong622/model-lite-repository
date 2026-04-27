@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huawei.modellite.repository.infrastructure.persistence.mapper.TagMapper">
+
+    <resultMap id="TagResultMap" type="com.huawei.modellite.repository.modelweight.domain.aggregate.tag.Tag">
+        <constructor>
+            <idArg column="id" javaType="java.util.UUID"/>
+            <arg column="name" javaType="String"/>
+            <arg column="tag_type" javaType="com.huawei.modellite.repository.common.enums.TagType"/>
+            <arg column="is_builtin" javaType="Boolean"/>
+        </constructor>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert">
+        INSERT INTO tag (id, name, tag_type, is_builtin, create_time, update_time)
+        VALUES (#{tagId}, #{name}, #{tagType}, #{isBuiltIn}, #{createTime}, #{updateTime})
+    </insert>
+
+    <select id="selectById" resultMap="TagResultMap">
+        SELECT id, name, tag_type, is_builtin, create_time, update_time
+        FROM tag
+        WHERE id = #{tagId}
+    </select>
+
+    <select id="selectAll" resultMap="TagResultMap">
+        SELECT id, name, tag_type, is_builtin, create_time, update_time
+        FROM tag
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByTagType" resultMap="TagResultMap">
+        SELECT id, name, tag_type, is_builtin, create_time, update_time
+        FROM tag
+        WHERE tag_type = #{tagType}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="countByName" resultType="int">
+        SELECT COUNT(*)
+        FROM tag
+        WHERE name = #{name}
+    </select>
+
+    <select id="countModelTagReferences" resultType="int">
+        SELECT COUNT(*)
+        FROM model_tag
+        WHERE tag_id = #{tagId}
+    </select>
+
+    <select id="countModelTypeTagReferences" resultType="int">
+        SELECT COUNT(*)
+        FROM model_type_tag
+        WHERE tag_id = #{tagId}
+    </select>
+
+    <delete id="deleteById">
+        DELETE FROM tag
+        WHERE id = #{tagId}
+    </delete>
+
+    <delete id="deleteModelTagsByTagId">
+        DELETE FROM model_tag
+        WHERE tag_id = #{tagId}
+    </delete>
+
+    <delete id="deleteModelTypeTagsByTagId">
+        DELETE FROM model_type_tag
+        WHERE tag_id = #{tagId}
+    </delete>
+
+    <insert id="insertModelTag">
+        INSERT INTO model_tag (id, model_id, tag_id, create_time)
+        VALUES (#{id}, #{modelId}, #{tagId}, NOW())
+    </insert>
+
+    <delete id="deleteModelTag">
+        DELETE FROM model_tag
+        WHERE model_id = #{modelId} AND tag_id = #{tagId}
+    </delete>
+
+    <select id="selectTagsByModelId" resultMap="TagResultMap">
+        SELECT t.id, t.name, t.tag_type, t.is_builtin, t.create_time, t.update_time
+        FROM tag t
+        INNER JOIN model_tag mt ON t.id = mt.tag_id
+        WHERE mt.model_id = #{modelId}
+        ORDER BY t.create_time DESC
+    </select>
+
+    <select id="selectModelIdsByTagId" resultType="java.util.UUID">
+        SELECT model_id
+        FROM model_tag
+        WHERE tag_id = #{tagId}
+    </select>
+
+    <insert id="insertModelTypeTag">
+        INSERT INTO model_type_tag (id, type_id, tag_id, create_time)
+        VALUES (#{id}, #{typeId}, #{tagId}, NOW())
+    </insert>
+
+    <delete id="deleteModelTypeTag">
+        DELETE FROM model_type_tag
+        WHERE type_id = #{typeId} AND tag_id = #{tagId}
+    </delete>
+
+    <select id="selectTagsByModelTypeId" resultMap="TagResultMap">
+        SELECT t.id, t.name, t.tag_type, t.is_builtin, t.create_time, t.update_time
+        FROM tag t
+        INNER JOIN model_type_tag mtt ON t.id = mtt.tag_id
+        WHERE mtt.type_id = #{typeId}
+        ORDER BY t.create_time DESC
+    </select>
+
+</mapper>
