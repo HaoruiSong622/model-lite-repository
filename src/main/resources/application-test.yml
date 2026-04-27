@@ -11,6 +11,7 @@ spring:
     init:
       mode: always
       schema-locations: classpath:sql/schema/h2/V1__create_core_tables.sql
+      continue-on-error: true
 
 logging:
   level:
