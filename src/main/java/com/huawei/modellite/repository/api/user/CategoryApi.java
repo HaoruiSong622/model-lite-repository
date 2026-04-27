@@ -53,8 +53,10 @@ public class CategoryApi {
     @PostMapping("/{id}/types")
     public ResponseEntity<BaseResponse<Void>> addModelTypeToCategory(
             @PathVariable UUID id,
-            @RequestBody UUID typeId) {
-        categoryApplicationService.addModelTypeToCategory(id, typeId);
+            @RequestBody java.util.Map<String, String> request) {
+        String name = request.get("name");
+        String description = request.get("description");
+        categoryApplicationService.addModelTypeToCategory(id, name, description);
         return ResponseEntity.ok(BaseResponse.success(null));
     }
 

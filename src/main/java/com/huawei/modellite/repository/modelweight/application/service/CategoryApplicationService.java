@@ -53,8 +53,13 @@ public class CategoryApplicationService {
         categoryRepository.deleteById(categoryId);
     }
 
-    public void addModelTypeToCategory(UUID categoryId, UUID typeId) {
-        throw new UnsupportedOperationException("addModelTypeToCategory with UUID typeId is not supported; use addModelType with name and description instead");
+    public void addModelTypeToCategory(UUID categoryId, String name, String description) {
+        Category category = categoryRepository.findByIdWithTypes(categoryId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.CATEGORY_NOT_FOUND,
+                        "分类不存在"));
+
+        category.addModelType(name, description);
+        categoryRepository.save(category);
     }
 
     public void removeModelTypeFromCategory(UUID categoryId, UUID typeId) {

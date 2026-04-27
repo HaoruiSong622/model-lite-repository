@@ -136,15 +136,16 @@ class TagApplicationServiceTest {
     class AddTagToModelTests {
 
         @Test
-        @DisplayName("should add model tag successfully")
-        void should_addModelTag_successfully() {
+        @DisplayName("should add model tags successfully")
+        void should_addModelTags_successfully() {
             UUID modelId = UUID.randomUUID();
             UUID tagId = UUID.randomUUID();
             Tag tag = Tag.createUserTag("AI");
 
+            when(tagRepository.findTagsByModelId(modelId)).thenReturn(List.of());
             when(tagRepository.findById(tagId)).thenReturn(Optional.of(tag));
 
-            service.addTagToModel(modelId, tagId);
+            service.addTagToModel(modelId, List.of(tagId));
 
             verify(tagRepository).addModelTag(modelId, tagId);
         }
@@ -155,12 +156,31 @@ class TagApplicationServiceTest {
             UUID modelId = UUID.randomUUID();
             UUID tagId = UUID.randomUUID();
 
+            when(tagRepository.findTagsByModelId(modelId)).thenReturn(List.of());
             when(tagRepository.findById(tagId)).thenReturn(Optional.empty());
 
             ModelLiteException exception = assertThrows(ModelLiteException.class,
-                    () -> service.addTagToModel(modelId, tagId));
+                    () -> service.addTagToModel(modelId, List.of(tagId)));
 
             assertEquals(ErrorCode.TAG_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw MODEL_TAG_LIMIT_EXCEEDED when tag count exceeds 20")
+        void should_throw_whenTagLimitExceeded() {
+            UUID modelId = UUID.randomUUID();
+            UUID tagId = UUID.randomUUID();
+
+            List<Tag> existingTags = new java.util.ArrayList<>();
+            for (int i = 0; i < 20; i++) {
+                existingTags.add(Tag.createUserTag("Tag" + i));
+            }
+            when(tagRepository.findTagsByModelId(modelId)).thenReturn(existingTags);
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.addTagToModel(modelId, List.of(tagId)));
+
+            assertEquals(ErrorCode.MODEL_TAG_LIMIT_EXCEEDED, exception.getCode());
         }
     }
 

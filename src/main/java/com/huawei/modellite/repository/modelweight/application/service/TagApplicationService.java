@@ -49,13 +49,23 @@ public class TagApplicationService {
         tagRepository.deleteById(tagId);
     }
 
-    public void addTagToModel(UUID modelId, UUID tagId) {
-        if (tagRepository.findById(tagId).isEmpty()) {
-            throw new ModelLiteException(ErrorCode.TAG_NOT_FOUND,
-                    "标签不存在");
+    public void addTagToModel(UUID modelId, List<UUID> tagIds) {
+        List<Tag> existingTags = tagRepository.findTagsByModelId(modelId);
+        if (existingTags.size() + tagIds.size() > 20) {
+            throw new ModelLiteException(ErrorCode.MODEL_TAG_LIMIT_EXCEEDED,
+                    "模型标签数量超过上限(≤20)");
         }
 
-        tagRepository.addModelTag(modelId, tagId);
+        for (UUID tagId : tagIds) {
+            if (tagRepository.findById(tagId).isEmpty()) {
+                throw new ModelLiteException(ErrorCode.TAG_NOT_FOUND,
+                        "标签不存在: " + tagId);
+            }
+        }
+
+        for (UUID tagId : tagIds) {
+            tagRepository.addModelTag(modelId, tagId);
+        }
     }
 
     public void removeTagFromModel(UUID modelId, UUID tagId) {

@@ -47,8 +47,8 @@ public class TagApi {
     @PostMapping("/models/{modelId}/tags")
     public ResponseEntity<BaseResponse<Void>> addTagToModel(
             @PathVariable UUID modelId,
-            @RequestBody UUID tagId) {
-        tagApplicationService.addTagToModel(modelId, tagId);
+            @RequestBody List<UUID> tagIds) {
+        tagApplicationService.addTagToModel(modelId, tagIds);
         return ResponseEntity.ok(BaseResponse.success(null));
     }
 

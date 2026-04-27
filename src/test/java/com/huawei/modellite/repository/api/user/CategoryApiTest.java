@@ -135,9 +135,13 @@ class CategoryApiTest {
 
     @Test
     void addModelTypeToCategory_shouldReturnSuccess() throws Exception {
+        java.util.Map<String, String> request = new java.util.HashMap<>();
+        request.put("name", "LLM");
+        request.put("description", "Large Language Model");
+
         mockMvc.perform(post("/v2/ui/categories/{id}/types", CATEGORY_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(TYPE_ID)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.message").value("success"));
@@ -146,11 +150,15 @@ class CategoryApiTest {
     @Test
     void addModelTypeToCategory_shouldReturn404_whenCategoryNotFound() throws Exception {
         doThrow(new ModelLiteException("0101001", "Category not found"))
-                .when(categoryApplicationService).addModelTypeToCategory(eq(CATEGORY_ID), any(UUID.class));
+                .when(categoryApplicationService).addModelTypeToCategory(eq(CATEGORY_ID), any(String.class), any(String.class));
+
+        java.util.Map<String, String> request = new java.util.HashMap<>();
+        request.put("name", "LLM");
+        request.put("description", "Large Language Model");
 
         mockMvc.perform(post("/v2/ui/categories/{id}/types", CATEGORY_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(TYPE_ID)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(101001))
                 .andExpect(jsonPath("$.message").value("Category not found"));

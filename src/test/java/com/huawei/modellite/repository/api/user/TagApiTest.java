@@ -111,7 +111,7 @@ class TagApiTest {
     void addTagToModel_shouldReturnSuccess() throws Exception {
         mockMvc.perform(post("/v2/ui/models/{modelId}/tags", MODEL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(TAG_ID)))
+                        .content(objectMapper.writeValueAsString(List.of(TAG_ID))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
                 .andExpect(jsonPath("$.message").value("success"));
@@ -120,11 +120,11 @@ class TagApiTest {
     @Test
     void addTagToModel_shouldReturn404_whenModelNotFound() throws Exception {
         doThrow(new ModelLiteException("0103001", "Model not found"))
-                .when(tagApplicationService).addTagToModel(eq(MODEL_ID), any(UUID.class));
+                .when(tagApplicationService).addTagToModel(eq(MODEL_ID), any(List.class));
 
         mockMvc.perform(post("/v2/ui/models/{modelId}/tags", MODEL_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(TAG_ID)))
+                        .content(objectMapper.writeValueAsString(List.of(TAG_ID))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value(103001))
                 .andExpect(jsonPath("$.message").value("Model not found"));

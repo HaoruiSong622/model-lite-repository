@@ -138,6 +138,37 @@ class CategoryApplicationServiceTest {
     }
 
     @Nested
+    @DisplayName("addModelTypeToCategory tests")
+    class AddModelTypeToCategoryTests {
+
+        @Test
+        @DisplayName("should add model type successfully")
+        void should_addModelType_successfully() {
+            UUID categoryId = UUID.randomUUID();
+            Category category = new Category(categoryId, "NLP", "desc", false);
+
+            when(categoryRepository.findByIdWithTypes(categoryId)).thenReturn(Optional.of(category));
+
+            service.addModelTypeToCategory(categoryId, "LLM", "Large Language Model");
+
+            verify(categoryRepository).save(category);
+        }
+
+        @Test
+        @DisplayName("should throw CATEGORY_NOT_FOUND when category does not exist")
+        void should_throw_whenCategoryNotFound() {
+            UUID categoryId = UUID.randomUUID();
+
+            when(categoryRepository.findByIdWithTypes(categoryId)).thenReturn(Optional.empty());
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.addModelTypeToCategory(categoryId, "LLM", "desc"));
+
+            assertEquals(ErrorCode.CATEGORY_NOT_FOUND, exception.getCode());
+        }
+    }
+
+    @Nested
     @DisplayName("removeModelTypeFromCategory tests")
     class RemoveModelTypeFromCategoryTests {
 
