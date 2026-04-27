@@ -12,8 +12,8 @@ public class ModelQueryCondition {
     private UUID tagId;
     private String keyword;
     private List<String> resourceGroups;
-    private Integer page;
-    private Integer pageSize;
-    private String sortBy;
-    private String sortOrder;
+    private Integer page = 1;
+    private Integer pageSize = 50;
+    private String sortBy = "createTime";
+    private String sortOrder = "desc";
 }

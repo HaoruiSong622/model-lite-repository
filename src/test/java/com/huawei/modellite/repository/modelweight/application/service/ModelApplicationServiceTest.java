@@ -14,6 +14,8 @@ import com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.StoragePath;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.TrainingMetadata;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.category.Category;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.category.ModelType;
 import com.huawei.modellite.repository.modelweight.domain.repository.CategoryRepository;
 import com.huawei.modellite.repository.modelweight.domain.repository.ModelRepository;
 import com.huawei.modellite.repository.modelweight.domain.repository.TagRepository;
@@ -59,6 +61,8 @@ class ModelApplicationServiceTest {
     void setUp() {
         service = new ModelApplicationService(modelRepository, modelDomainService,
                 categoryRepository, tagRepository);
+        lenient().when(categoryRepository.findByIdWithTypes(any())).thenReturn(Optional.empty());
+        lenient().when(tagRepository.findById(any())).thenReturn(Optional.empty());
     }
 
     @Nested

@@ -212,6 +212,20 @@ public class ModelApplicationService {
         }
     }
 
+    private void fillCategoryAndTypeName(Model model, String[] holder) {
+        if (model.getCategoryId() != null) {
+            categoryRepository.findByIdWithTypes(model.getCategoryId()).ifPresent(category -> {
+                holder[0] = category.getName();
+                if (model.getTypeId() != null && category.getModelTypes() != null) {
+                    category.getModelTypes().stream()
+                            .filter(mt -> mt.getTypeId().equals(model.getTypeId()))
+                            .findFirst()
+                            .ifPresent(mt -> holder[1] = mt.getName());
+                }
+            });
+        }
+    }
+
     private ModelResponse toModelResponse(Model model) {
         ModelResponse response = new ModelResponse();
         response.setId(model.getModelId());
@@ -229,6 +243,12 @@ public class ModelApplicationService {
                 .map(v -> toVersionResponse(v, model.getModelId()))
                 .toList());
         response.setTags(toTagResponses(model.getTagIds()));
+
+        String[] categoryInfo = new String[2];
+        fillCategoryAndTypeName(model, categoryInfo);
+        response.setCategoryName(categoryInfo[0]);
+        response.setTypeName(categoryInfo[1]);
+
         return response;
     }
 
@@ -250,6 +270,12 @@ public class ModelApplicationService {
                     model.getVersions().get(model.getVersions().size() - 1), model.getModelId()));
         }
         response.setTags(toTagResponses(model.getTagIds()));
+
+        String[] categoryInfo = new String[2];
+        fillCategoryAndTypeName(model, categoryInfo);
+        response.setCategoryName(categoryInfo[0]);
+        response.setTypeName(categoryInfo[1]);
+
         return response;
     }
 
@@ -295,6 +321,11 @@ public class ModelApplicationService {
                 .map(tagId -> {
                     TagResponse tagResponse = new TagResponse();
                     tagResponse.setId(tagId);
+                    tagRepository.findById(tagId).ifPresent(tag -> {
+                        tagResponse.setName(tag.getName());
+                        tagResponse.setTagType(tag.getTagType() != null ? tag.getTagType().getDbValue() : null);
+                        tagResponse.setIsBuiltin(tag.getIsBuiltIn());
+                    });
                     return tagResponse;
                 })
                 .toList();
