@@ -113,9 +113,9 @@ class ModelTest {
         }
 
         @Test
-        @DisplayName("should throw when name exceeds 100 characters")
-        void should_throw_whenNameExceeds100() {
-            String longName = "a".repeat(101);
+        @DisplayName("should throw when name exceeds 255 characters")
+        void should_throw_whenNameExceeds255() {
+            String longName = "a".repeat(256);
             ModelLiteException ex = assertThrows(ModelLiteException.class,
                     () -> Model.createModel(longName, "desc", UUID.randomUUID(), UUID.randomUUID(),
                             "rg", "user", "author", "series", "10B", 4096L));
@@ -123,12 +123,21 @@ class ModelTest {
         }
 
         @Test
-        @DisplayName("should allow name with exactly 100 characters")
-        void should_allowNameWith100Characters() {
-            String name = "a".repeat(100);
+        @DisplayName("should allow name with exactly 255 characters")
+        void should_allowNameWith255Characters() {
+            String name = "a".repeat(255);
             Model model = Model.createModel(name, "desc", UUID.randomUUID(), UUID.randomUUID(),
                     "rg", "user", "author", "series", "10B", 4096L);
             assertEquals(name, model.getName());
+        }
+
+        @Test
+        @DisplayName("should throw when name contains invalid characters")
+        void should_throw_whenNameContainsInvalidCharacters() {
+            ModelLiteException ex = assertThrows(ModelLiteException.class,
+                    () -> Model.createModel("model@name", "desc", UUID.randomUUID(), UUID.randomUUID(),
+                            "rg", "user", "author", "series", "10B", 4096L));
+            assertEquals(ErrorCode.MODEL_NAME_EXISTS, ex.getCode());
         }
 
         @Test

@@ -80,17 +80,35 @@ public class Model {
         );
     }
 
+    private static final int MAX_NAME_LENGTH = 255;
+    private static final int MAX_RESOURCE_GROUP_LENGTH = 100;
+    private static final String NAME_PATTERN = "^[a-zA-Z0-9\\u4e00-\\u9fa5_-]+$";
+
     private static void validateName(String name) {
-        if (name == null || name.isBlank() || name.length() > 100) {
+        if (name == null) {
             throw new ModelLiteException(ErrorCode.MODEL_NAME_EXISTS,
-                    "模型名称不能为空且长度不能超过100");
+                    "模型名称不能为空");
+        }
+        String trimmed = name.trim();
+        if (trimmed.isEmpty() || trimmed.length() > MAX_NAME_LENGTH) {
+            throw new ModelLiteException(ErrorCode.MODEL_NAME_EXISTS,
+                    "模型名称不能为空且长度不能超过" + MAX_NAME_LENGTH);
+        }
+        if (!trimmed.matches(NAME_PATTERN)) {
+            throw new ModelLiteException(ErrorCode.MODEL_NAME_EXISTS,
+                    "模型名称只能包含字母、数字、中文、下划线和连字符");
         }
     }
 
     private static void validateResourceGroup(String resourceGroup) {
-        if (resourceGroup == null || resourceGroup.isBlank()) {
+        if (resourceGroup == null) {
             throw new ModelLiteException(ErrorCode.MODEL_RESOURCE_GROUP_IMMUTABLE,
                     "资源组不能为空");
+        }
+        String trimmed = resourceGroup.trim();
+        if (trimmed.isEmpty() || trimmed.length() > MAX_RESOURCE_GROUP_LENGTH) {
+            throw new ModelLiteException(ErrorCode.MODEL_RESOURCE_GROUP_IMMUTABLE,
+                    "资源组不能为空且长度不能超过" + MAX_RESOURCE_GROUP_LENGTH);
         }
     }
 

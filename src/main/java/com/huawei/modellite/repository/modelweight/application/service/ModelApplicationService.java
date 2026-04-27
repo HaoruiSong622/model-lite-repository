@@ -15,7 +15,7 @@ import com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.StoragePath;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.TrainingMetadata;
-import com.huawei.modellite.repository.modelweight.domain.aggregate.tag.Tag;
+import com.huawei.modellite.repository.modelweight.domain.aggregate.category.Category;
 import com.huawei.modellite.repository.modelweight.domain.repository.CategoryRepository;
 import com.huawei.modellite.repository.modelweight.domain.repository.ModelRepository;
 import com.huawei.modellite.repository.modelweight.domain.repository.TagRepository;
@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
