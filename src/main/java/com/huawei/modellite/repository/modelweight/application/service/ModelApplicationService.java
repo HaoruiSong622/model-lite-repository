@@ -309,8 +309,8 @@ public class ModelApplicationService {
         response.setModelId(modelId);
         response.setVersionNumber(version.getVersionNumber());
         response.setStatus(version.getStatus() != null ? version.getStatus().getDbValue() : null);
-        response.setIsRegistered(version.getIsRegistered());
-        response.setIsLocked(version.getIsLocked());
+        response.setRegistered(version.isRegistered());
+        response.setLocked(version.isLocked());
         if (version.getStoragePath() != null) {
             StoragePath sp = version.getStoragePath();
             response.setSourceType(sp.getSourceType() != null ? sp.getSourceType().name() : null);

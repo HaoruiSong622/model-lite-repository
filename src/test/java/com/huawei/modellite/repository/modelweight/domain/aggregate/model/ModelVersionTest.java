@@ -31,8 +31,8 @@ class ModelVersionTest {
             assertEquals(storagePath, version.getStoragePath());
             assertEquals("fp16", version.getWeightType());
             assertEquals(VersionStatus.NO_WEIGHT, version.getStatus());
-            assertFalse(version.getIsRegistered());
-            assertFalse(version.getIsLocked());
+            assertFalse(version.isRegistered());
+            assertFalse(version.isLocked());
             assertNull(version.getTrainingMetadata());
         }
 
@@ -71,8 +71,8 @@ class ModelVersionTest {
             assertEquals(path, version.getStoragePath());
             assertEquals("bf16", version.getWeightType());
             assertEquals(VersionStatus.UPLOADING, version.getStatus());
-            assertTrue(version.getIsRegistered());
-            assertTrue(version.getIsLocked());
+            assertTrue(version.isRegistered());
+            assertTrue(version.isLocked());
             assertEquals(metadata, version.getTrainingMetadata());
         }
     }
@@ -108,8 +108,8 @@ class ModelVersionTest {
             assertEquals(path, version.getStoragePath());
             assertNull(version.getWeightType());
             assertEquals(VersionStatus.NO_WEIGHT, version.getStatus());
-            assertFalse(version.getIsRegistered());
-            assertFalse(version.getIsLocked());
+            assertFalse(version.isRegistered());
+            assertFalse(version.isLocked());
             assertNull(version.getTrainingMetadata());
         }
     }

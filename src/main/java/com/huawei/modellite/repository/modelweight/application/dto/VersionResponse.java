@@ -11,8 +11,8 @@ public class VersionResponse {
     private UUID modelId;
     private Integer versionNumber;
     private String status;
-    private Boolean isRegistered;
-    private Boolean isLocked;
+    private Boolean registered;
+    private Boolean locked;
     private String sourceType;
     private String pvcName;
     private String internalPath;

@@ -79,8 +79,8 @@ class ModelTest {
             ModelVersion v1 = model.getVersions().get(0);
             assertEquals(1, v1.getVersionNumber());
             assertEquals(VersionStatus.NO_WEIGHT, v1.getStatus());
-            assertFalse(v1.getIsRegistered());
-            assertFalse(v1.getIsLocked());
+            assertFalse(v1.isRegistered());
+            assertFalse(v1.isLocked());
             assertNull(v1.getWeightType());
             assertNull(v1.getTrainingMetadata());
         }
@@ -240,8 +240,8 @@ class ModelTest {
             assertEquals(path, v2.getStoragePath());
             assertEquals("bf16", v2.getWeightType());
             assertEquals(VersionStatus.AVAILABLE, v2.getStatus());
-            assertTrue(v2.getIsRegistered());
-            assertFalse(v2.getIsLocked());
+            assertTrue(v2.isRegistered());
+            assertFalse(v2.isLocked());
             assertNotNull(v2.getTrainingMetadata());
         }
 

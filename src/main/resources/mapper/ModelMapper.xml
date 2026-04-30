@@ -34,8 +34,8 @@
             <result property="versionNumber" column="v_version_number"/>
             <result property="weightType" column="v_weight_type"/>
             <result property="status" column="v_status"/>
-            <result property="isRegistered" column="v_is_registered"/>
-            <result property="isLocked" column="v_is_locked"/>
+            <result property="registered" column="v_is_registered"/>
+            <result property="locked" column="v_is_locked"/>
         </collection>
     </resultMap>
 
@@ -44,8 +44,8 @@
         <result property="versionNumber" column="version_number"/>
         <result property="weightType" column="weight_type"/>
         <result property="status" column="status"/>
-        <result property="isRegistered" column="is_registered"/>
-        <result property="isLocked" column="is_locked"/>
+        <result property="registered" column="is_registered"/>
+        <result property="locked" column="is_locked"/>
     </resultMap>
 
     <insert id="insertModel">
@@ -62,7 +62,7 @@
             <choose><when test="version.storagePath != null">#{version.storagePath.sourceType}</when><otherwise>NULL</otherwise></choose>,
             <choose><when test="version.storagePath != null">#{version.storagePath.nfsServer}</when><otherwise>NULL</otherwise></choose>,
             <choose><when test="version.storagePath != null">#{version.storagePath.nfsPath}</when><otherwise>NULL</otherwise></choose>,
-            #{version.weightType}, #{version.isRegistered}, #{version.status}, #{version.isLocked},
+            #{version.weightType}, #{version.registered}, #{version.status}, #{version.locked},
             <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainFrame}</when><otherwise>NULL</otherwise></choose>,
             <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainType}</when><otherwise>NULL</otherwise></choose>,
             <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainStrategy}</when><otherwise>NULL</otherwise></choose>,
@@ -230,9 +230,9 @@
             nfs_server = <choose><when test="version.storagePath != null">#{version.storagePath.nfsServer}</when><otherwise>NULL</otherwise></choose>,
             nfs_path = <choose><when test="version.storagePath != null">#{version.storagePath.nfsPath}</when><otherwise>NULL</otherwise></choose>,
             weight_type = #{version.weightType},
-            is_registered = #{version.isRegistered},
+            is_registered = #{version.registered},
             status = #{version.status},
-            is_locked = #{version.isLocked},
+            is_locked = #{version.locked},
             train_frame = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainFrame}</when><otherwise>NULL</otherwise></choose>,
             train_type = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainType}</when><otherwise>NULL</otherwise></choose>,
             train_strategy = <choose><when test="version.trainingMetadata != null">#{version.trainingMetadata.trainStrategy}</when><otherwise>NULL</otherwise></choose>,

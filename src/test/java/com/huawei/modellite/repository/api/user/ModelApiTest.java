@@ -263,8 +263,8 @@ class ModelApiTest {
         response.setModelId(MODEL_ID);
         response.setVersionNumber(versionNumber);
         response.setStatus("AVAILABLE");
-        response.setIsRegistered(false);
-        response.setIsLocked(false);
+        response.setRegistered(false);
+        response.setLocked(false);
         response.setSourceType("PVC");
         response.setPvcName("test-pvc");
         response.setInternalPath("/models");

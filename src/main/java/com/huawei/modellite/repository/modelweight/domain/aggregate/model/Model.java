@@ -122,8 +122,8 @@ public class Model {
     }
 
     public ModelVersion createVersion(StoragePath storagePath, String weightType,
-                                      VersionStatus status, boolean isRegistered,
-                                      TrainingMetadata trainingMetadata) {
+                                       VersionStatus status, boolean registered,
+                                       TrainingMetadata trainingMetadata) {
         if (versions.size() >= MAX_VERSIONS) {
             throw new ModelLiteException(ErrorCode.VERSION_CAPACITY_EXCEEDED,
                     "版本数量不能超过" + MAX_VERSIONS);
@@ -136,7 +136,7 @@ public class Model {
                 storagePath,
                 weightType,
                 status,
-                isRegistered,
+                registered,
                 false,
                 trainingMetadata
         );

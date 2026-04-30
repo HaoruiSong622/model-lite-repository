@@ -238,7 +238,7 @@ class ModelRepositoryTest extends AbstractIntegrationTest {
         Optional<ModelVersion> found = modelRepository.findVersionById(model.getModelId(), version.getVersionId());
         assertThat(found).isPresent();
         assertThat(found.get().getWeightType()).isEqualTo("new-type");
-        assertThat(found.get().getIsRegistered()).isTrue();
+        assertThat(found.get().isRegistered()).isTrue();
     }
 
     @Test

@@ -3,7 +3,9 @@ package com.huawei.modellite.repository.modelweight.domain.aggregate.model;
 import java.util.UUID;
 
 import com.huawei.modellite.repository.common.enums.VersionStatus;
+import lombok.Getter;
 
+@Getter
 public class ModelVersion {
 
     private UUID versionId;
@@ -11,8 +13,8 @@ public class ModelVersion {
     private StoragePath storagePath;
     private String weightType;
     private VersionStatus status;
-    private boolean isRegistered;
-    private boolean isLocked;
+    private boolean registered;
+    private boolean locked;
     private TrainingMetadata trainingMetadata;
 
     public ModelVersion() {
@@ -20,15 +22,15 @@ public class ModelVersion {
 
     public ModelVersion(UUID versionId, int versionNumber, StoragePath storagePath,
                         String weightType, VersionStatus status,
-                        boolean isRegistered, boolean isLocked,
+                        boolean registered, boolean locked,
                         TrainingMetadata trainingMetadata) {
         this.versionId = versionId;
         this.versionNumber = versionNumber;
         this.storagePath = storagePath;
         this.weightType = weightType;
         this.status = status;
-        this.isRegistered = isRegistered;
-        this.isLocked = isLocked;
+        this.registered = registered;
+        this.locked = locked;
         this.trainingMetadata = trainingMetadata;
     }
 
@@ -43,37 +45,5 @@ public class ModelVersion {
                 false,
                 null
         );
-    }
-
-    public UUID getVersionId() {
-        return versionId;
-    }
-
-    public int getVersionNumber() {
-        return versionNumber;
-    }
-
-    public StoragePath getStoragePath() {
-        return storagePath;
-    }
-
-    public String getWeightType() {
-        return weightType;
-    }
-
-    public VersionStatus getStatus() {
-        return status;
-    }
-
-    public boolean getIsRegistered() {
-        return isRegistered;
-    }
-
-    public boolean getIsLocked() {
-        return isLocked;
-    }
-
-    public TrainingMetadata getTrainingMetadata() {
-        return trainingMetadata;
     }
 }
