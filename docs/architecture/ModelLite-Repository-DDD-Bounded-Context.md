@@ -328,7 +328,7 @@ classDiagram
 
 ### 2.5 领域事件
 
-> 本上下文的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 2-8 章。
+> 本上下文的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md) 第 2-8 章。
 
 ---
 
@@ -463,7 +463,7 @@ classDiagram
 
 ### 3.5 领域事件
 
-> 本上下文的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 3-4 章。
+> 本上下文的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md) 第 3-4 章。
 
 ---
 
@@ -572,10 +572,10 @@ sequenceDiagram
 
 ## 7. 参考文档
 
-- [ModelLite-模型仓库-需求规格说明书-v1.2.md](/.sisyphus/drafts/ModelLite-模型仓库-需求规格说明书-v1.2.md)
-- [ModelLite-Repository-DDD-Ubiquitous-Language.md](./ModelLite-Repository-DDD-Ubiquitous-Language.md)
-- [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md)
-- [ModelLite-Repository-DDD-Subdomain-Modeling.md](./ModelLite-Repository-DDD-Subdomain-Modeling.md)
+- [ModelLite-模型仓库-需求规格说明书-v1.2.md](/docs/ModelLite-模型仓库-需求规格说明书-v1.2.md)
+- [ModelLite-Repository-DDD-Ubiquitous-Language.md](ModelLite-Repository-DDD-Ubiquitous-Language.md)
+- [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md)
+- [ModelLite-Repository-DDD-Subdomain-Modeling.md](ModelLite-Repository-DDD-Subdomain-Modeling.md)
 - [ModelLite-模型仓库-架构设计-v1.1.md](/docs/architecture/ModelLite-模型仓库-架构设计-v1.1.md)
 
 ---

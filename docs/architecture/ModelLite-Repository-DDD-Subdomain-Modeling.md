@@ -14,8 +14,8 @@
 
 本文档基于以下输入进行领域/子域建模：
 
-- **统一语言**（[ModelLite-Repository-DDD-Ubiquitous-Language.md](./ModelLite-Repository-DDD-Ubiquitous-Language.md)）：确保子域划分与业务术语一致
-- **事件风暴结果**（[ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md)）：52 个领域事件作为业务能力的聚类依据
+- **统一语言**（[ModelLite-Repository-DDD-Ubiquitous-Language.md](ModelLite-Repository-DDD-Ubiquitous-Language.md)）：确保子域划分与业务术语一致
+- **事件风暴结果**（[ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md)）：52 个领域事件作为业务能力的聚类依据
 - **需求规格说明书 v1.2**：功能需求作为子域边界的验证参照
 
 ### 1.2 建模原则
@@ -144,7 +144,7 @@ graph TB
 
 #### 核心领域事件
 
-> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 2、5-8 章。
+> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md) 第 2、5-8 章。
 
 #### 业务不变量
 
@@ -250,7 +250,7 @@ graph TB
 
 #### 核心领域事件
 
-> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 3-4 章。
+> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md) 第 3-4 章。
 
 #### 业务不变量
 
@@ -311,7 +311,7 @@ graph TB
 
 #### 核心领域事件
 
-> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md) 第 2.3、8 章。
+> 本子域的领域事件详见 [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md) 第 2.3、8 章。
 
 #### 业务不变量
 
@@ -476,10 +476,10 @@ graph TB
 
 ## 8. 参考文档
 
-- [ModelLite-模型仓库-需求规格说明书-v1.2.md](/.sisyphus/drafts/ModelLite-模型仓库-需求规格说明书-v1.2.md)
-- [ModelLite-Repository-DDD-Ubiquitous-Language.md](./ModelLite-Repository-DDD-Ubiquitous-Language.md)
-- [ModelLite-Repository-DDD-Domain-Events.md](./ModelLite-Repository-DDD-Domain-Events.md)
-- [ModelLite-Repository-DDD-Bounded-Context.md](./ModelLite-Repository-DDD-Bounded-Context.md)
+- [ModelLite-模型仓库-需求规格说明书-v1.2.md](/docs/ModelLite-模型仓库-需求规格说明书-v1.2.md)
+- [ModelLite-Repository-DDD-Ubiquitous-Language.md](ModelLite-Repository-DDD-Ubiquitous-Language.md)
+- [ModelLite-Repository-DDD-Domain-Events.md](ModelLite-Repository-DDD-Domain-Events.md)
+- [ModelLite-Repository-DDD-Bounded-Context.md](ModelLite-Repository-DDD-Bounded-Context.md)
 
 ---
 
