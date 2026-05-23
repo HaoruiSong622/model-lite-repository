@@ -8,6 +8,7 @@ import com.huawei.modellite.repository.modelweight.application.dto.ModelListResp
 import com.huawei.modellite.repository.modelweight.application.dto.ModelModifyRequest;
 import com.huawei.modellite.repository.modelweight.application.dto.ModelResponse;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionCreateRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.VersionRegisterRequest;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionResponse;
 import com.huawei.modellite.repository.modelweight.application.service.ModelApplicationService;
 import com.huawei.modellite.repository.modelweight.domain.vo.ModelQueryCondition;
@@ -113,25 +114,80 @@ class ModelApiTest {
                 .andExpect(jsonPath("$.message").value("Model not found"));
     }
 
-    @Test
-    void modifyModel_shouldReturnModifiedModel() throws Exception {
-        ModelModifyRequest request = new ModelModifyRequest();
-        request.setDescription("Updated description");
-        request.setCategoryId(CATEGORY_ID);
-        request.setTypeId(TYPE_ID);
+@Test
+    void createVersion_shouldReturnCreatedVersion() throws Exception {
+        VersionCreateRequest request = new VersionCreateRequest();
+        request.setRegistered(true);
+        request.setSourceType("PVC");
+        request.setPvcName("test-pvc");
+        request.setInternalPath("/models");
+        request.setWeightType("FP32");
 
-        ModelResponse response = createModelResponse(MODEL_ID, "TestModel");
-        response.setDescription("Updated description");
-        when(modelApplicationService.modifyModel(eq(MODEL_ID), any(ModelModifyRequest.class), eq("default"))).thenReturn(response);
+        VersionResponse response = createVersionResponse(VERSION_ID, 1);
+        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class), eq("default"))).thenReturn(response);
 
-        mockMvc.perform(patch("/v2/ui/models/{id}", MODEL_ID)
+        mockMvc.perform(post("/v2/ui/models/{id}/versions", MODEL_ID)
                         .param("resourceGroup", "default")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.id").value(MODEL_ID.toString()))
-                .andExpect(jsonPath("$.data.description").value("Updated description"));
+                .andExpect(jsonPath("$.data.id").value(VERSION_ID.toString()))
+                .andExpect(jsonPath("$.data.versionNumber").value(1));
+    }
+
+    @Test
+    void createVersion_shouldReturn404_whenModelNotFound() throws Exception {
+        VersionCreateRequest request = new VersionCreateRequest();
+
+        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class), eq(null)))
+                .thenThrow(new ModelLiteException("0102001", "Model not found"));
+
+        mockMvc.perform(post("/v2/ui/models/{id}/versions", MODEL_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(102001))
+                .andExpect(jsonPath("$.message").value("Model not found"));
+    }
+
+    @Test
+    void registerVersion_shouldReturnRegisteredVersion() throws Exception {
+        VersionRegisterRequest request = new VersionRegisterRequest();
+        request.setSourceType("PVC");
+        request.setPvcName("registered-pvc");
+        request.setInternalPath("/weights");
+        request.setWeightType("safetensors");
+
+        VersionResponse response = createVersionResponse(VERSION_ID, 1);
+        response.setRegistered(true);
+        when(modelApplicationService.registerVersion(eq(MODEL_ID), eq(VERSION_ID), any(VersionRegisterRequest.class), eq("default"))).thenReturn(response);
+
+        mockMvc.perform(post("/v2/ui/models/{id}/versions/{versionId}/register", MODEL_ID, VERSION_ID)
+                        .param("resourceGroup", "default")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(0))
+                .andExpect(jsonPath("$.data.id").value(VERSION_ID.toString()))
+                .andExpect(jsonPath("$.data.registered").value(true));
+    }
+
+    @Test
+    void registerVersion_shouldReturn404_whenVersionNotFound() throws Exception {
+        VersionRegisterRequest request = new VersionRegisterRequest();
+        request.setSourceType("PVC");
+        request.setPvcName("pvc");
+
+        when(modelApplicationService.registerVersion(eq(MODEL_ID), eq(VERSION_ID), any(VersionRegisterRequest.class), eq(null)))
+                .thenThrow(new ModelLiteException("0102006", "Version not found"));
+
+        mockMvc.perform(post("/v2/ui/models/{id}/versions/{versionId}/register", MODEL_ID, VERSION_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(102006))
+                .andExpect(jsonPath("$.message").value("Version not found"));
     }
 
     @Test
@@ -176,44 +232,6 @@ class ModelApiTest {
                 .andExpect(jsonPath("$.data.items[0].id").value(MODEL_ID.toString()))
                 .andExpect(jsonPath("$.data.items[0].name").value("TestModel"))
                 .andExpect(jsonPath("$.data.total").value(1));
-    }
-
-    @Test
-    void createVersion_shouldReturnCreatedVersion() throws Exception {
-        VersionCreateRequest request = new VersionCreateRequest();
-        request.setSourceType("PVC");
-        request.setPvcName("test-pvc");
-        request.setInternalPath("/models");
-        request.setWeightType("FP32");
-
-        VersionResponse response = createVersionResponse(VERSION_ID, 1);
-        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class), eq("default"))).thenReturn(response);
-
-        mockMvc.perform(post("/v2/ui/models/{id}/versions", MODEL_ID)
-                        .param("resourceGroup", "default")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(0))
-                .andExpect(jsonPath("$.data.id").value(VERSION_ID.toString()))
-                .andExpect(jsonPath("$.data.versionNumber").value(1));
-    }
-
-    @Test
-    void createVersion_shouldReturn404_whenModelNotFound() throws Exception {
-        VersionCreateRequest request = new VersionCreateRequest();
-        request.setSourceType("PVC");
-        request.setPvcName("test-pvc");
-
-        when(modelApplicationService.createVersion(eq(MODEL_ID), any(VersionCreateRequest.class), eq(null)))
-                .thenThrow(new ModelLiteException("0102001", "Model not found"));
-
-        mockMvc.perform(post("/v2/ui/models/{id}/versions", MODEL_ID)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.code").value(102001))
-                .andExpect(jsonPath("$.message").value("Model not found"));
     }
 
     @Test
@@ -263,7 +281,7 @@ class ModelApiTest {
         response.setModelId(MODEL_ID);
         response.setVersionNumber(versionNumber);
         response.setStatus("AVAILABLE");
-        response.setRegistered(false);
+        response.setRegistered(true);
         response.setLocked(false);
         response.setSourceType("PVC");
         response.setPvcName("test-pvc");

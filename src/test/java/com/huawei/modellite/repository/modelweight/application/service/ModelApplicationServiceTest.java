@@ -9,6 +9,7 @@ import com.huawei.modellite.repository.modelweight.application.dto.ModelModifyRe
 import com.huawei.modellite.repository.modelweight.application.dto.ModelResponse;
 import com.huawei.modellite.repository.modelweight.application.dto.TrainingMetadataDto;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionCreateRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.VersionRegisterRequest;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionResponse;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion;
@@ -379,13 +380,14 @@ class ModelApplicationServiceTest {
     class CreateVersionTests {
 
         @Test
-        @DisplayName("should create version successfully with PVC storage")
+        @DisplayName("should create version successfully with PVC storage (registered mode)")
         void should_createVersion_successfully_withPvc() {
             UUID modelId = UUID.randomUUID();
             Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
                     UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
 
             VersionCreateRequest request = new VersionCreateRequest();
+            request.setRegistered(true);
             request.setSourceType("PVC");
             request.setPvcName("test-pvc");
             request.setInternalPath("/models");
@@ -403,17 +405,19 @@ class ModelApplicationServiceTest {
             assertEquals("/models", response.getInternalPath());
             assertEquals("FP32", response.getWeightType());
             assertEquals(VersionStatus.AVAILABLE.getDbValue(), response.getStatus());
+            assertTrue(response.getRegistered());
             verify(modelRepository).updateVersion(any(ModelVersion.class));
         }
 
         @Test
-        @DisplayName("should create version successfully with NFS storage")
+        @DisplayName("should create version successfully with NFS storage (registered mode)")
         void should_createVersion_successfully_withNfs() {
             UUID modelId = UUID.randomUUID();
             Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
                     UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
 
             VersionCreateRequest request = new VersionCreateRequest();
+            request.setRegistered(true);
             request.setSourceType("NFS");
             request.setNfsServer("192.168.1.1");
             request.setNfsPath("/nfs/models");
@@ -438,11 +442,34 @@ class ModelApplicationServiceTest {
             assertNotNull(response.getTrainingMetadata());
             assertEquals("PyTorch", response.getTrainingMetadata().getTrainFrame());
             assertEquals(VersionStatus.AVAILABLE.getDbValue(), response.getStatus());
+            assertTrue(response.getRegistered());
         }
 
         @Test
-        @DisplayName("should create version with empty storage path")
-        void should_createVersion_withEmptyStoragePath() {
+        @DisplayName("should create empty version (NoWeight) when registered is false")
+        void should_createEmptyVersion_whenRegisteredFalse() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+
+            VersionCreateRequest request = new VersionCreateRequest();
+            request.setRegistered(false);
+            request.setWeightType("FP16");
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            doNothing().when(modelRepository).updateVersion(any(ModelVersion.class));
+
+            VersionResponse response = service.createVersion(modelId, request, "default");
+
+            assertNotNull(response);
+            assertEquals(2, response.getVersionNumber());
+            assertEquals(VersionStatus.NO_WEIGHT.getDbValue(), response.getStatus());
+            assertFalse(response.getRegistered());
+        }
+
+        @Test
+        @DisplayName("should create empty version when registered is null (default)")
+        void should_createEmptyVersion_whenRegisteredNull() {
             UUID modelId = UUID.randomUUID();
             Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
                     UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
@@ -458,6 +485,25 @@ class ModelApplicationServiceTest {
             assertNotNull(response);
             assertEquals(2, response.getVersionNumber());
             assertEquals(VersionStatus.NO_WEIGHT.getDbValue(), response.getStatus());
+            assertFalse(response.getRegistered());
+        }
+
+        @Test
+        @DisplayName("should throw REGISTER_SOURCE_TYPE_REQUIRED when registered=true without sourceType")
+        void should_throw_whenRegisteredTrueWithoutSourceType() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+
+            VersionCreateRequest request = new VersionCreateRequest();
+            request.setRegistered(true);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.createVersion(modelId, request, "default"));
+
+            assertEquals(ErrorCode.REGISTER_SOURCE_TYPE_REQUIRED, exception.getCode());
         }
 
         @Test
@@ -512,6 +558,133 @@ class ModelApplicationServiceTest {
                     () -> service.createVersion(modelId, request, "other-group"));
 
             assertEquals(ErrorCode.MODEL_NOT_FOUND, exception.getCode());
+        }
+    }
+
+    @Nested
+    @DisplayName("registerVersion tests")
+    class RegisterVersionTests {
+
+        @Test
+        @DisplayName("should register NoWeight version with PVC successfully")
+        void should_registerVersion_withPvc() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+            ModelVersion v1 = model.getVersions().get(0);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            when(modelRepository.findVersionById(modelId, v1.getVersionId())).thenReturn(Optional.of(v1));
+            doNothing().when(modelRepository).updateVersion(any(ModelVersion.class));
+
+            VersionRegisterRequest request = new VersionRegisterRequest();
+            request.setSourceType("PVC");
+            request.setPvcName("registered-pvc");
+            request.setInternalPath("/weights");
+            request.setWeightType("safetensors");
+
+            VersionResponse response = service.registerVersion(modelId, v1.getVersionId(), request, "default");
+
+            assertNotNull(response);
+            assertEquals(VersionStatus.AVAILABLE.getDbValue(), response.getStatus());
+            assertTrue(response.getRegistered());
+            assertEquals("PVC", response.getSourceType());
+            assertEquals("registered-pvc", response.getPvcName());
+            assertEquals("/weights", response.getInternalPath());
+            assertEquals("safetensors", response.getWeightType());
+            verify(modelRepository).updateVersion(any(ModelVersion.class));
+        }
+
+        @Test
+        @DisplayName("should register NoWeight version with NFS successfully")
+        void should_registerVersion_withNfs() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+            ModelVersion v1 = model.getVersions().get(0);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            when(modelRepository.findVersionById(modelId, v1.getVersionId())).thenReturn(Optional.of(v1));
+            doNothing().when(modelRepository).updateVersion(any(ModelVersion.class));
+
+            VersionRegisterRequest request = new VersionRegisterRequest();
+            request.setSourceType("NFS");
+            request.setNfsServer("10.0.1.100");
+            request.setNfsPath("/data/models");
+            request.setWeightType("bf16");
+
+            VersionResponse response = service.registerVersion(modelId, v1.getVersionId(), request, "default");
+
+            assertNotNull(response);
+            assertEquals(VersionStatus.AVAILABLE.getDbValue(), response.getStatus());
+            assertTrue(response.getRegistered());
+            assertEquals("NFS", response.getSourceType());
+        }
+
+        @Test
+        @DisplayName("should throw VERSION_STATUS_INVALID_FOR_REGISTER when version is not NoWeight")
+        void should_throw_whenVersionNotNoWeight() {
+            UUID modelId = UUID.randomUUID();
+            UUID versionId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+
+            ModelVersion availableVersion = new ModelVersion(versionId, 2,
+                    StoragePath.ofPvc("existing-pvc"), "fp16",
+                    VersionStatus.AVAILABLE, true, false, null);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            when(modelRepository.findVersionById(modelId, versionId)).thenReturn(Optional.of(availableVersion));
+
+            VersionRegisterRequest request = new VersionRegisterRequest();
+            request.setSourceType("PVC");
+            request.setPvcName("another-pvc");
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.registerVersion(modelId, versionId, request, "default"));
+
+            assertEquals(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw VERSION_NOT_FOUND when version does not exist")
+        void should_throw_whenVersionNotFound() {
+            UUID modelId = UUID.randomUUID();
+            UUID versionId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            when(modelRepository.findVersionById(modelId, versionId)).thenReturn(Optional.empty());
+
+            VersionRegisterRequest request = new VersionRegisterRequest();
+            request.setSourceType("PVC");
+            request.setPvcName("pvc");
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.registerVersion(modelId, versionId, request, "default"));
+
+            assertEquals(ErrorCode.VERSION_NOT_FOUND, exception.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw REGISTER_SOURCE_TYPE_REQUIRED when sourceType is invalid")
+        void should_throw_whenSourceTypeInvalid() {
+            UUID modelId = UUID.randomUUID();
+            Model model = Model.createModel("TestModel", "desc", UUID.randomUUID(),
+                    UUID.randomUUID(), "default", null, "author", "series", "1000", 512L);
+            ModelVersion v1 = model.getVersions().get(0);
+
+            when(modelRepository.findByIdWithVersions(modelId)).thenReturn(Optional.of(model));
+            when(modelRepository.findVersionById(modelId, v1.getVersionId())).thenReturn(Optional.of(v1));
+
+            VersionRegisterRequest request = new VersionRegisterRequest();
+            request.setSourceType("INVALID");
+
+            ModelLiteException exception = assertThrows(ModelLiteException.class,
+                    () -> service.registerVersion(modelId, v1.getVersionId(), request, "default"));
+
+            assertEquals(ErrorCode.REGISTER_SOURCE_TYPE_REQUIRED, exception.getCode());
         }
     }
 

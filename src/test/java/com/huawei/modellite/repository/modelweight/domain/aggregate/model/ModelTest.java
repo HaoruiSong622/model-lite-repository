@@ -294,6 +294,76 @@ class ModelTest {
     }
 
     @Nested
+    @DisplayName("register tests")
+    class RegisterTests {
+
+        @Test
+        @DisplayName("should register NoWeight version to Available with storage path")
+        void should_register_noWeightVersion() {
+            Model model = createDefaultModel();
+            ModelVersion v1 = model.getVersions().get(0);
+
+            assertEquals(VersionStatus.NO_WEIGHT, v1.getStatus());
+            assertFalse(v1.isRegistered());
+
+            StoragePath path = StoragePath.ofPvc("registered-pvc", "/weights");
+            v1.register(path, "safetensors", null);
+
+            assertEquals(VersionStatus.AVAILABLE, v1.getStatus());
+            assertTrue(v1.isRegistered());
+            assertEquals(path, v1.getStoragePath());
+            assertEquals("safetensors", v1.getWeightType());
+            assertNotNull(v1.getTrainingMetadata());
+        }
+
+        @Test
+        @DisplayName("should register with training metadata")
+        void should_register_withTrainingMetadata() {
+            Model model = createDefaultModel();
+            ModelVersion v1 = model.getVersions().get(0);
+
+            StoragePath path = StoragePath.ofNfs("10.0.1.100", "/data/model");
+            TrainingMetadata metadata = new TrainingMetadata("PyTorch", "SFT", "LoRA", 36000L, "0.0023", "v1.0");
+
+            v1.register(path, "bf16", metadata);
+
+            assertEquals(VersionStatus.AVAILABLE, v1.getStatus());
+            assertTrue(v1.isRegistered());
+            assertEquals(metadata, v1.getTrainingMetadata());
+        }
+
+        @Test
+        @DisplayName("should throw VERSION_STATUS_INVALID_FOR_REGISTER when version is already Available")
+        void should_throw_whenVersionAlreadyAvailable() {
+            Model model = createDefaultModel();
+            ModelVersion v1 = model.getVersions().get(0);
+
+            StoragePath path = StoragePath.ofPvc("first-pvc");
+            v1.register(path, "fp16", null);
+
+            StoragePath anotherPath = StoragePath.ofPvc("second-pvc");
+            ModelLiteException ex = assertThrows(ModelLiteException.class,
+                    () -> v1.register(anotherPath, "bf16", null));
+
+            assertEquals(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER, ex.getCode());
+        }
+
+        @Test
+        @DisplayName("should throw VERSION_STATUS_INVALID_FOR_REGISTER when version is Uploading")
+        void should_throw_whenVersionUploading() {
+            Model model = createDefaultModel();
+
+            ModelVersion uploadingVersion = model.createVersion(
+                    StoragePath.empty(), null, VersionStatus.UPLOADING, false, null);
+
+            ModelLiteException ex = assertThrows(ModelLiteException.class,
+                    () -> uploadingVersion.register(StoragePath.ofPvc("pvc"), "fp16", null));
+
+            assertEquals(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER, ex.getCode());
+        }
+    }
+
+    @Nested
     @DisplayName("getLatestVersionNumber tests")
     class GetLatestVersionNumberTests {
 

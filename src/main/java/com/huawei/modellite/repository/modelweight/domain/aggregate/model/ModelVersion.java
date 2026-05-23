@@ -2,7 +2,9 @@ package com.huawei.modellite.repository.modelweight.domain.aggregate.model;
 
 import java.util.UUID;
 
+import com.huawei.modellite.repository.common.enums.ErrorCode;
 import com.huawei.modellite.repository.common.enums.VersionStatus;
+import com.huawei.modellite.repository.common.exception.ModelLiteException;
 import lombok.Getter;
 
 @Getter
@@ -45,5 +47,17 @@ public class ModelVersion {
                 false,
                 null
         );
+    }
+
+    public void register(StoragePath storagePath, String weightType, TrainingMetadata trainingMetadata) {
+        if (this.status != VersionStatus.NO_WEIGHT) {
+            throw new ModelLiteException(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER,
+                    "只有NoWeight状态的版本可以纳管，当前状态: " + this.status.getDbValue());
+        }
+        this.storagePath = storagePath;
+        this.weightType = weightType;
+        this.trainingMetadata = trainingMetadata != null ? trainingMetadata : TrainingMetadata.empty();
+        this.registered = true;
+        this.status = VersionStatus.AVAILABLE;
     }
 }

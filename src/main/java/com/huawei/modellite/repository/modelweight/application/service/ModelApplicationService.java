@@ -10,6 +10,7 @@ import com.huawei.modellite.repository.modelweight.application.dto.ModelResponse
 import com.huawei.modellite.repository.modelweight.application.dto.TagResponse;
 import com.huawei.modellite.repository.modelweight.application.dto.TrainingMetadataDto;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionCreateRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.VersionRegisterRequest;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionResponse;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.Model;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.model.ModelVersion;
@@ -24,7 +25,6 @@ import com.huawei.modellite.repository.modelweight.domain.vo.ModelQueryCondition
 import com.huawei.modellite.repository.modelweight.domain.vo.PageResult;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -155,7 +155,6 @@ public class ModelApplicationService {
         return responsePage;
     }
 
-    @Transactional
     public VersionResponse createVersion(UUID modelId, VersionCreateRequest request, String userResourceGroup) {
         Model model = modelRepository.findByIdWithVersions(modelId)
                 .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
@@ -163,31 +162,27 @@ public class ModelApplicationService {
 
         checkResourceGroupVisibility(model, userResourceGroup);
 
-        StoragePath storagePath = buildStoragePath(request);
+        boolean registered = request.getRegistered() != null && request.getRegistered();
 
-        TrainingMetadata trainingMetadata = null;
-        if (request.getTrainingMetadata() != null) {
-            TrainingMetadataDto dto = request.getTrainingMetadata();
-            trainingMetadata = new TrainingMetadata(
-                    dto.getTrainFrame(),
-                    dto.getTrainType(),
-                    dto.getTrainStrategy(),
-                    dto.getTrainTime(),
-                    dto.getFinalLoss(),
-                    dto.getSourceVersion()
-            );
-        }
-
+        StoragePath storagePath = StoragePath.empty();
         VersionStatus status = VersionStatus.NO_WEIGHT;
-        if (storagePath != null && storagePath.getSourceType() != null) {
+
+        if (registered) {
+            storagePath = buildStoragePath(request);
+            if (storagePath.getSourceType() == null) {
+                throw new ModelLiteException(ErrorCode.REGISTER_SOURCE_TYPE_REQUIRED,
+                        "纳管模式下必须提供存储路径（sourceType）");
+            }
             status = VersionStatus.AVAILABLE;
         }
+
+        TrainingMetadata trainingMetadata = buildTrainingMetadata(request.getTrainingMetadata());
 
         ModelVersion version = model.createVersion(
                 storagePath,
                 request.getWeightType(),
                 status,
-                false,
+                registered,
                 trainingMetadata
         );
 
@@ -210,6 +205,28 @@ public class ModelApplicationService {
         return toVersionResponse(version, modelId);
     }
 
+    public VersionResponse registerVersion(UUID modelId, UUID versionId,
+                                            VersionRegisterRequest request, String userResourceGroup) {
+        Model model = modelRepository.findByIdWithVersions(modelId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.MODEL_NOT_FOUND,
+                        "模型不存在: " + modelId));
+
+        checkResourceGroupVisibility(model, userResourceGroup);
+
+        ModelVersion version = modelRepository.findVersionById(modelId, versionId)
+                .orElseThrow(() -> new ModelLiteException(ErrorCode.VERSION_NOT_FOUND,
+                        "版本不存在: " + versionId));
+
+        StoragePath storagePath = buildStoragePathFromRegister(request);
+        TrainingMetadata trainingMetadata = buildTrainingMetadata(request.getTrainingMetadata());
+
+        version.register(storagePath, request.getWeightType(), trainingMetadata);
+
+        modelRepository.updateVersion(version);
+
+        return toVersionResponse(version, modelId);
+    }
+
     private StoragePath buildStoragePath(VersionCreateRequest request) {
         if ("PVC".equalsIgnoreCase(request.getSourceType())) {
             return StoragePath.ofPvc(request.getPvcName(), request.getInternalPath());
@@ -218,6 +235,31 @@ public class ModelApplicationService {
         } else {
             return StoragePath.empty();
         }
+    }
+
+    private StoragePath buildStoragePathFromRegister(VersionRegisterRequest request) {
+        if ("PVC".equalsIgnoreCase(request.getSourceType())) {
+            return StoragePath.ofPvc(request.getPvcName(), request.getInternalPath());
+        } else if ("NFS".equalsIgnoreCase(request.getSourceType())) {
+            return StoragePath.ofNfs(request.getNfsServer(), request.getNfsPath());
+        } else {
+            throw new ModelLiteException(ErrorCode.REGISTER_SOURCE_TYPE_REQUIRED,
+                    "纳管必须指定有效的存储来源类型（PVC或NFS）");
+        }
+    }
+
+    private TrainingMetadata buildTrainingMetadata(TrainingMetadataDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        return new TrainingMetadata(
+                dto.getTrainFrame(),
+                dto.getTrainType(),
+                dto.getTrainStrategy(),
+                dto.getTrainTime(),
+                dto.getFinalLoss(),
+                dto.getSourceVersion()
+        );
     }
 
     private List<String> getVisibleResourceGroups(String userResourceGroup) {

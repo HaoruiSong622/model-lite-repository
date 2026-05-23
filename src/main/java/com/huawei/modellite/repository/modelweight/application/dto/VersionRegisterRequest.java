@@ -1,12 +1,9 @@
 package com.huawei.modellite.repository.modelweight.application.dto;
 
-import java.util.UUID;
-
 import lombok.Data;
 
 @Data
-public class VersionCreateRequest {
-    private Boolean registered;
+public class VersionRegisterRequest {
     private String sourceType;
     private String pvcName;
     private String internalPath;

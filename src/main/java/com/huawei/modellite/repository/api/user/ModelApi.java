@@ -6,6 +6,7 @@ import com.huawei.modellite.repository.modelweight.application.dto.ModelListResp
 import com.huawei.modellite.repository.modelweight.application.dto.ModelModifyRequest;
 import com.huawei.modellite.repository.modelweight.application.dto.ModelResponse;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionCreateRequest;
+import com.huawei.modellite.repository.modelweight.application.dto.VersionRegisterRequest;
 import com.huawei.modellite.repository.modelweight.application.dto.VersionResponse;
 import com.huawei.modellite.repository.modelweight.application.service.ModelApplicationService;
 import com.huawei.modellite.repository.modelweight.domain.vo.ModelQueryCondition;
@@ -96,6 +97,16 @@ public class ModelApi {
             @PathVariable UUID versionId,
             @RequestParam(required = false) String resourceGroup) {
         VersionResponse version = modelApplicationService.getVersion(id, versionId, resourceGroup);
+        return ResponseEntity.ok(BaseResponse.success(version));
+    }
+
+    @PostMapping("/{id}/versions/{versionId}/register")
+    public ResponseEntity<BaseResponse<VersionResponse>> registerVersion(
+            @PathVariable UUID id,
+            @PathVariable UUID versionId,
+            @RequestBody VersionRegisterRequest request,
+            @RequestParam(required = false) String resourceGroup) {
+        VersionResponse version = modelApplicationService.registerVersion(id, versionId, request, resourceGroup);
         return ResponseEntity.ok(BaseResponse.success(version));
     }
 }

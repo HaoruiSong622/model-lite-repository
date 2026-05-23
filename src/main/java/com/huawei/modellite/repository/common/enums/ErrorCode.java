@@ -51,6 +51,8 @@ public final class ErrorCode {
     public static final String VERSION_INVALID_CREATE_MODE = "0102030";      // 无效的版本创建模式
     public static final String TAG_NOT_FOUND_F3 = "0102031";                 // 标签不存在
     public static final String MODEL_TAG_COUNT_EXCEEDED = "0102032";          // 模型标签数量超出限制（≤20）
-    public static final String STORAGE_PATH_PVC_NAME_REQUIRED = "0102033";    // PVC 模式下 pvcName 不能为空
-    public static final String STORAGE_PATH_NFS_REQUIRED = "0102034";         // NFS 模式下 nfsServer 和 nfsPath 不能为空
+    public static final String STORAGE_PATH_PVC_NAME_REQUIRED = "0102033";
+    public static final String STORAGE_PATH_NFS_REQUIRED = "0102034";
+    public static final String VERSION_STATUS_INVALID_FOR_REGISTER = "0102035";
+    public static final String REGISTER_SOURCE_TYPE_REQUIRED = "0102036";
 }

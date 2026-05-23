@@ -13,6 +13,10 @@ public class TrainingMetadata {
     private final String finalLoss;
     private final String sourceVersion;
 
+    public static TrainingMetadata empty() {
+        return new TrainingMetadata(null, null, null, null, null, null);
+    }
+
     public TrainingMetadata(String trainFrame, String trainType, String trainStrategy,
                             Long trainTime, String finalLoss, String sourceVersion) {
         this.trainFrame = trainFrame;
