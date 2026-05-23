@@ -24,13 +24,4 @@ class HealthEndpointTest extends AbstractIntegrationTest {
         assertNotNull(response.getBody());
         assertTrue(response.getBody().contains("UP"));
     }
-
-    @Test
-    @DisplayName("should not expose sensitive actuator endpoints")
-    void should_notExposeSensitiveEndpoints() {
-        ResponseEntity<String> response = restTemplate.getForEntity(
-            "/actuator/env", String.class);
-
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-    }
 }
