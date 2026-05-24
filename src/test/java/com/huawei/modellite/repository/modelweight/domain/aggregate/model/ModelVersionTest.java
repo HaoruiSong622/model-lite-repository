@@ -113,4 +113,90 @@ class ModelVersionTest {
             assertNull(version.getTrainingMetadata());
         }
     }
+
+    @Nested
+    @DisplayName("updateStatus tests")
+    class UpdateStatusTests {
+
+        @Test
+        @DisplayName("should allow NoWeight -> Uploading")
+        void should_allowNoWeightToUploading() {
+            ModelVersion version = ModelVersion.createInitialVersion(StoragePath.ofPvc("pvc", "/data"));
+
+            version.updateStatus(VersionStatus.UPLOADING);
+
+            assertEquals(VersionStatus.UPLOADING, version.getStatus());
+        }
+
+        @Test
+        @DisplayName("should allow NoWeight -> UploadFailed")
+        void should_allowNoWeightToUploadFailed() {
+            ModelVersion version = ModelVersion.createInitialVersion(StoragePath.ofPvc("pvc", "/data"));
+
+            version.updateStatus(VersionStatus.UPLOAD_FAILED);
+
+            assertEquals(VersionStatus.UPLOAD_FAILED, version.getStatus());
+        }
+
+        @Test
+        @DisplayName("should allow Uploading -> Available")
+        void should_allowUploadingToAvailable() {
+            ModelVersion version = ModelVersion.createInitialVersion(StoragePath.ofPvc("pvc", "/data"));
+            version.updateStatus(VersionStatus.UPLOADING);
+
+            version.updateStatus(VersionStatus.AVAILABLE);
+
+            assertEquals(VersionStatus.AVAILABLE, version.getStatus());
+        }
+
+        @Test
+        @DisplayName("should allow Uploading -> UploadFailed")
+        void should_allowUploadingToUploadFailed() {
+            ModelVersion version = ModelVersion.createInitialVersion(StoragePath.ofPvc("pvc", "/data"));
+            version.updateStatus(VersionStatus.UPLOADING);
+
+            version.updateStatus(VersionStatus.UPLOAD_FAILED);
+
+            assertEquals(VersionStatus.UPLOAD_FAILED, version.getStatus());
+        }
+
+        @Test
+        @DisplayName("should reject Available -> Uploading")
+        void should_rejectAvailableToUploading() {
+            ModelVersion version = ModelVersion.createInitialVersion(StoragePath.ofPvc("pvc", "/data"));
+            version.updateStatus(VersionStatus.UPLOADING);
+            version.updateStatus(VersionStatus.AVAILABLE);
+
+            ModelLiteException ex = assertThrows(ModelLiteException.class,
+                    () -> version.updateStatus(VersionStatus.UPLOADING));
+
+            assertEquals(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER, ex.getCode());
+        }
+
+        @Test
+        @DisplayName("should reject ValidationFailed -> Uploading")
+        void should_rejectValidationFailedToUploading() {
+            ModelVersion version = new ModelVersion(
+                    UUID.randomUUID(), 1, StoragePath.ofPvc("pvc", "/data"),
+                    "fp16", VersionStatus.VALIDATION_FAILED, false, false, null);
+
+            ModelLiteException ex = assertThrows(ModelLiteException.class,
+                    () -> version.updateStatus(VersionStatus.UPLOADING));
+
+            assertEquals(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER, ex.getCode());
+        }
+
+        @Test
+        @DisplayName("should reject UploadFailed -> Uploading")
+        void should_rejectUploadFailedToUploading() {
+            ModelVersion version = new ModelVersion(
+                    UUID.randomUUID(), 1, StoragePath.ofPvc("pvc", "/data"),
+                    "fp16", VersionStatus.UPLOAD_FAILED, false, false, null);
+
+            ModelLiteException ex = assertThrows(ModelLiteException.class,
+                    () -> version.updateStatus(VersionStatus.UPLOADING));
+
+            assertEquals(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER, ex.getCode());
+        }
+    }
 }

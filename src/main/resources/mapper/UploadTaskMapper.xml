@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.huawei.modellite.repository.infrastructure.persistence.mapper.UploadTaskMapper">
+
+    <resultMap id="cifsCredentialsResultMap" type="com.huawei.modellite.repository.weighttask.domain.aggregate.uploadtask.CifsCredentials">
+        <constructor>
+            <arg column="cifs_username" javaType="java.lang.String"/>
+            <arg column="cifs_password" javaType="java.lang.String"/>
+        </constructor>
+    </resultMap>
+
+    <resultMap id="uploadTaskResultMap" type="com.huawei.modellite.repository.weighttask.domain.aggregate.uploadtask.UploadTask" autoMapping="false">
+        <id property="taskId" column="id" javaType="java.util.UUID" typeHandler="com.huawei.modellite.repository.infrastructure.persistence.typehandler.UUIDTypeHandler"/>
+        <result property="modelId" column="model_id" javaType="java.util.UUID" typeHandler="com.huawei.modellite.repository.infrastructure.persistence.typehandler.UUIDTypeHandler"/>
+        <result property="versionId" column="version_id" javaType="java.util.UUID" typeHandler="com.huawei.modellite.repository.infrastructure.persistence.typehandler.UUIDTypeHandler"/>
+        <result property="targetPath" column="target_path"/>
+        <result property="progress" column="progress"/>
+        <result property="status" column="status" javaType="com.huawei.modellite.repository.common.enums.TaskStatus" typeHandler="com.huawei.modellite.repository.infrastructure.persistence.typehandler.TaskStatusTypeHandler"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="createUser" column="create_user"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="version" column="version"/>
+        <association property="sourcePath" javaType="com.huawei.modellite.repository.weighttask.domain.aggregate.uploadtask.SourcePath">
+            <constructor>
+                <arg column="source_type" javaType="com.huawei.modellite.repository.common.enums.SourceType" typeHandler="com.huawei.modellite.repository.infrastructure.persistence.typehandler.SourceTypeTypeHandler"/>
+                <arg column="source_path" javaType="java.lang.String"/>
+                <arg resultMap="cifsCredentialsResultMap" javaType="com.huawei.modellite.repository.weighttask.domain.aggregate.uploadtask.CifsCredentials"/>
+            </constructor>
+        </association>
+    </resultMap>
+
+    <sql id="uploadTaskColumns">
+        id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO upload_task (
+            id, model_id, version_id, source_type, source_path,
+            cifs_username, cifs_password, target_path, progress,
+            status, error_message, version, create_user, deleted,
+            create_time, update_time
+        ) VALUES (
+            #{taskId}, #{modelId}, #{versionId},
+            #{sourcePath.sourceType}, #{sourcePath.path},
+            <choose>
+                <when test="sourcePath.credentials != null">#{sourcePath.credentials.username}</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            <choose>
+                <when test="sourcePath.credentials != null">#{sourcePath.credentials.password}</when>
+                <otherwise>NULL</otherwise>
+            </choose>,
+            #{targetPath}, #{progress}, #{status}, #{errorMessage},
+            #{version}, #{createUser}, FALSE, #{createTime}, #{updateTime}
+        )
+    </insert>
+
+    <select id="selectById" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE id = #{taskId}
+    </select>
+
+    <select id="selectByModelId" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE model_id = #{modelId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectByVersionId" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE version_id = #{versionId}
+    </select>
+
+    <select id="selectActiveByVersionId" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE version_id = #{versionId}
+          AND status IN ('Pending', 'Running', 'Paused')
+    </select>
+
+    <select id="selectByStatus" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE status = #{status}
+    </select>
+
+    <select id="selectByStatusIn" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE status IN
+        <foreach collection="statuses" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+    </select>
+
+    <update id="update">
+        UPDATE upload_task
+        SET model_id = #{modelId},
+            version_id = #{versionId},
+            source_type = #{sourcePath.sourceType},
+            source_path = #{sourcePath.path},
+            cifs_username = <choose><when test="sourcePath.credentials != null">#{sourcePath.credentials.username}</when><otherwise>NULL</otherwise></choose>,
+            cifs_password = <choose><when test="sourcePath.credentials != null">#{sourcePath.credentials.password}</when><otherwise>NULL</otherwise></choose>,
+            target_path = #{targetPath},
+            progress = #{progress},
+            status = #{status},
+            error_message = #{errorMessage},
+            version = version + 1,
+            update_time = #{updateTime}
+        WHERE id = #{taskId} AND version = #{version}
+    </update>
+
+    <update id="updateProgress">
+        UPDATE upload_task
+        SET progress = #{progress},
+            update_time = #{updateTime}
+        WHERE id = #{taskId}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM upload_task WHERE id = #{taskId}
+    </delete>
+
+</mapper>

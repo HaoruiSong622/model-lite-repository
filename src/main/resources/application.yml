@@ -19,3 +19,12 @@ management:
   endpoint:
     health:
       enabled: true
+
+weight-import:
+  job:
+    image: file-copier:dev-placeholder
+    namespace: default
+    cpu-request: 500m
+    memory-request: 512Mi
+    storage-request: 1Gi
+    suffix-whitelist: .safetensors,.bin,.pt,.pth,.onnx

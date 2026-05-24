@@ -122,8 +122,11 @@ CREATE TABLE upload_task (
     create_user         VARCHAR(100) NOT NULL,
     deleted             BOOLEAN NOT NULL DEFAULT FALSE,
     create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    version             BIGINT NOT NULL DEFAULT 0
 );
+
+CREATE INDEX idx_upload_version ON upload_task (version);
 
 CREATE TABLE convert_task (
     id                  UUID PRIMARY KEY,

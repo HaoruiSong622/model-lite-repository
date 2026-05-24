@@ -60,4 +60,17 @@ public class ModelVersion {
         this.registered = true;
         this.status = VersionStatus.AVAILABLE;
     }
+
+    public void updateStatus(VersionStatus newStatus) {
+        boolean allowed = switch (this.status) {
+            case NO_WEIGHT -> newStatus == VersionStatus.UPLOADING || newStatus == VersionStatus.UPLOAD_FAILED;
+            case UPLOADING -> newStatus == VersionStatus.AVAILABLE || newStatus == VersionStatus.UPLOAD_FAILED;
+            default -> false;
+        };
+        if (!allowed) {
+            throw new ModelLiteException(ErrorCode.VERSION_STATUS_INVALID_FOR_REGISTER,
+                    "不允许从 " + this.status.getDbValue() + " 转换到 " + newStatus.getDbValue());
+        }
+        this.status = newStatus;
+    }
 }

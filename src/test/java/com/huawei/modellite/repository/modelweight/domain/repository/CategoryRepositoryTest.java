@@ -1,12 +1,14 @@
 package com.huawei.modellite.repository.modelweight.domain.repository;
 
 import com.huawei.modellite.repository.integration.AbstractIntegrationTest;
+import com.huawei.modellite.repository.integration.K8sJobServiceTestConfig;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.category.Category;
 import com.huawei.modellite.repository.modelweight.domain.aggregate.category.ModelType;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Transactional
 @Sql(scripts = "/sql/cleanup-test-data.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+@Import(K8sJobServiceTestConfig.class)
 class CategoryRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired

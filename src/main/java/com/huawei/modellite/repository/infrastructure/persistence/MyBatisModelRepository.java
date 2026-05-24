@@ -110,6 +110,11 @@ public class MyBatisModelRepository implements ModelRepository {
     }
 
     @Override
+    public void saveVersion(UUID modelId, ModelVersion version) {
+        modelMapper.insertModelVersion(modelId, version);
+    }
+
+    @Override
     public List<UUID> findTagIdsByModelId(UUID modelId) {
         return modelMapper.selectTagIdsByModelId(modelId);
     }

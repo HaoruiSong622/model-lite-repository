@@ -30,7 +30,8 @@ public class GlobalExceptionHandler {
             return HttpStatus.NOT_FOUND;
         }
         if (code.endsWith("02") || code.endsWith("08") ||
-            code.endsWith("16") || code.endsWith("18") || code.endsWith("21")) {
+            code.endsWith("16") || code.endsWith("18") || code.endsWith("21") ||
+            code.endsWith("37") || code.endsWith("38") || code.endsWith("44")) {
             return HttpStatus.CONFLICT;
         }
         return HttpStatus.BAD_REQUEST;

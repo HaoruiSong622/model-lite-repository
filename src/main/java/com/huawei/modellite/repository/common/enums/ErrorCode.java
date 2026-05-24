@@ -55,4 +55,14 @@ public final class ErrorCode {
     public static final String STORAGE_PATH_NFS_REQUIRED = "0102034";
     public static final String VERSION_STATUS_INVALID_FOR_REGISTER = "0102035";
     public static final String REGISTER_SOURCE_TYPE_REQUIRED = "0102036";
+
+    // ===== 上传任务扩展 =====
+    public static final String UPLOAD_TASK_STATUS_CONFLICT = "0102037";
+    public static final String UPLOAD_TASK_ACTIVE_EXISTS = "0102038";
+    public static final String UPLOAD_TASK_VERSION_NOT_NO_WEIGHT = "0102039";
+    public static final String UPLOAD_TASK_INVALID_PROGRESS = "0102040";
+    public static final String UPLOAD_SOURCE_PATH_INVALID = "0102041";
+    public static final String UPLOAD_CIFS_CREDENTIALS_REQUIRED = "0102042";
+    public static final String UPLOAD_TASK_JOB_SUBMIT_FAILED = "0102043";
+    public static final String UPLOAD_TASK_ALREADY_TERMINATED = "0102044";
 }

@@ -7,8 +7,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 
+import org.springframework.context.annotation.Import;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+@Import(K8sJobServiceTestConfig.class)
 class SchemaMigrationTest extends AbstractIntegrationTest {
 
     @Autowired

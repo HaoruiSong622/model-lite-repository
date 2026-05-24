@@ -8,8 +8,11 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
+import org.springframework.context.annotation.Import;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+@Import(K8sJobServiceTestConfig.class)
 class DatabaseConnectionTest extends AbstractIntegrationTest {
 
     @Autowired

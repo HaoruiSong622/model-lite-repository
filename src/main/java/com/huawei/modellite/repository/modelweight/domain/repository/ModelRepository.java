@@ -35,5 +35,13 @@ public interface ModelRepository {
 
     void updateVersion(ModelVersion version);
 
+    /**
+     * Insert a new model version.
+     *
+     * @param modelId the model ID
+     * @param version the version to insert
+     */
+    void saveVersion(UUID modelId, ModelVersion version);
+
     List<UUID> findTagIdsByModelId(UUID modelId);
 }

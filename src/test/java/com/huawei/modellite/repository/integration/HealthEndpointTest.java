@@ -7,8 +7,11 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import org.springframework.context.annotation.Import;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+@Import(K8sJobServiceTestConfig.class)
 class HealthEndpointTest extends AbstractIntegrationTest {
 
     @Autowired

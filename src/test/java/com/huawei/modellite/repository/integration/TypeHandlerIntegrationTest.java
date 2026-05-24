@@ -8,8 +8,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.UUID;
 
+import org.springframework.context.annotation.Import;
+
 import static org.junit.jupiter.api.Assertions.*;
 
+@Import(K8sJobServiceTestConfig.class)
 class TypeHandlerIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired
