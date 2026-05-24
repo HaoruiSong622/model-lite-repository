@@ -1,0 +1,121 @@
+# Default values for model-lite-repository
+# This is a YAML-formatted file.
+
+# -- Number of replicas
+replicaCount: 1
+
+image:
+  # -- Container image repository (build locally or set to your registry)
+  repository: model-lite-repository
+  # -- Pull policy: Always for SNAPSHOT, IfNotPresent for tagged releases
+  pullPolicy: Always
+  # -- Overrides the image tag whose default is the chart appVersion
+  tag: ""
+
+# -- Image pull secrets (for private registries)
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # -- Specifies whether a service account should be created
+  create: true
+  # -- Annotations to add to the service account
+  annotations: {}
+  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# -- Annotations to add to the deployment
+podAnnotations: {}
+
+# -- Pod security context
+podSecurityContext: {}
+
+# -- Container security context
+securityContext: {}
+
+service:
+  # -- Service type (ClusterIP for internal, NodePort/LoadBalancer for external access)
+  type: ClusterIP
+  # -- Service port
+  port: 8080
+  # -- NodePort (only used when service.type is NodePort)
+  nodePort: null
+
+ingress:
+  # -- Enable ingress
+  enabled: false
+  # -- Ingress class name
+  className: ""
+  # -- Ingress annotations
+  annotations: {}
+  hosts:
+    - host: model-lite-repository.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  # -- Container resource limits
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  # -- Container resource requests
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+# -- Liveness probe configuration
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Readiness probe configuration
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# -- Application configuration (passed as environment variables)
+app:
+  # -- Spring profiles to activate (e.g., "dev,k8s")
+  profiles: "dev"
+  # -- Server port inside container
+  serverPort: 8080
+  # -- Logging level
+  logLevel: "INFO"
+
+# -- PostgreSQL database configuration
+database:
+  # -- Database host (set to an existing PostgreSQL service name or external IP)
+  host: "postgres-postgresql"
+  # -- Database port
+  port: 5432
+  # -- Database name
+  name: "modellite"
+  # -- Database username
+  username: "modellite"
+  # -- Database password (or use existingSecret)
+  password: "changeme"
+  # -- Use an existing Kubernetes Secret for credentials (keys: username, password)
+  existingSecret: ""
+
+# -- Node selector for pod scheduling
+nodeSelector: {}
+
+# -- Tolerations for pod scheduling
+tolerations: []
+
+# -- Affinity rules for pod scheduling
+affinity: {}

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: model-lite-repository
+description: Helm chart for ModelLite Repository Spring Boot application
+type: application
+version: 0.1.0
+appVersion: "0.1.0-SNAPSHOT"
+kubeVersion: ">= 1.24.0-0"
+maintainers:
+  - name: ModelLite Team
