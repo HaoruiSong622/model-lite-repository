@@ -192,4 +192,46 @@ public class TaskReconciler {
         }
         return logs.length() > 500 ? logs.substring(logs.length() - 500) : logs;
     }
+
+    /**
+     * Called by JobInformerService when a Job transitions to RUNNING state.
+     * Validates the task exists and delegates to TaskEventCallback.
+     */
+    public void onJobRunning(String taskId) {
+        log.info("Reconciler: Job running event for task {}", taskId);
+        taskEventCallback.onJobRunning(taskId);
+    }
+
+    /**
+     * Called by JobInformerService when a Job transitions to COMPLETE state.
+     * Validates the task exists and delegates to TaskEventCallback.
+     */
+    public void onJobCompleted(String taskId) {
+        log.info("Reconciler: Job completed event for task {}", taskId);
+        taskEventCallback.onJobCompleted(taskId);
+    }
+
+    /**
+     * Called by JobInformerService when a Job transitions to FAILED state.
+     * Enriches the error message by reading Pod logs (design doc §3.9 阶段 6),
+     * then delegates to TaskEventCallback with the enriched message.
+     */
+    public void onJobFailed(String taskId, String initialErrorMessage) {
+        log.info("Reconciler: Job failed event for task {}, initial error: {}", taskId, initialErrorMessage);
+        String enrichedMessage = enrichErrorMessage(taskId, initialErrorMessage);
+        taskEventCallback.onJobFailed(taskId, enrichedMessage);
+    }
+
+    private String enrichErrorMessage(String taskId, String initialErrorMessage) {
+        try {
+            String logs = k8sJobService.getJobPodLogs(taskId, 50);
+            if (logs != null && !logs.isEmpty()) {
+                String logError = extractErrorMessage(logs);
+                return initialErrorMessage + " | Pod logs: " + logError;
+            }
+        } catch (Exception e) {
+            log.debug("Could not fetch Pod logs for task {}: {}", taskId, e.getMessage());
+        }
+        return initialErrorMessage;
+    }
 }

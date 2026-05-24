@@ -1,6 +1,5 @@
 package com.huawei.modellite.repository.infrastructure.k8s;
 
-import com.huawei.modellite.repository.weighttask.domain.service.TaskEventCallback;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.api.model.batch.v1.JobCondition;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -18,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Service that registers a Fabric8 SharedInformer to watch K8s Job events
- * and dispatch them to {@link TaskEventCallback} handlers.
+ * and dispatch them to {@link TaskReconciler}.
  *
  * <p>Watches Jobs with label {@code app=modellite-file-copier} in the configured namespace.
  * Only the leader instance actively watches; non-leader instances keep the informer registered
@@ -37,7 +36,7 @@ public class JobInformerService {
     private static final long RESYNC_PERIOD_MS = 60_000L;
 
     private final KubernetesClient kubernetesClient;
-    private final TaskEventCallback taskEventCallback;
+    private final TaskReconciler taskReconciler;
     private final LeaderElectionService leaderElectionService;
     private final String namespace;
 
@@ -46,11 +45,11 @@ public class JobInformerService {
     private final Map<String, String> lastKnownPhase = new ConcurrentHashMap<>();
 
     public JobInformerService(KubernetesClient kubernetesClient,
-                               TaskEventCallback taskEventCallback,
+                               TaskReconciler taskReconciler,
                                LeaderElectionService leaderElectionService,
                                @Value("${weight-import.namespace:default}") String namespace) {
         this.kubernetesClient = kubernetesClient;
-        this.taskEventCallback = taskEventCallback;
+        this.taskReconciler = taskReconciler;
         this.leaderElectionService = leaderElectionService;
         this.namespace = namespace;
     }
@@ -125,16 +124,16 @@ public class JobInformerService {
             switch (newPhase) {
                 case "RUNNING":
                     log.info("Informer: Job started running for task {}", taskId);
-                    taskEventCallback.onJobRunning(taskId);
+                    taskReconciler.onJobRunning(taskId);
                     break;
                 case "COMPLETE":
                     log.info("Informer: Job completed for task {}", taskId);
-                    taskEventCallback.onJobCompleted(taskId);
+                    taskReconciler.onJobCompleted(taskId);
                     break;
                 case "FAILED":
                     String errorMessage = extractErrorMessage(newJob);
                     log.info("Informer: Job failed for task {}: {}", taskId, errorMessage);
-                    taskEventCallback.onJobFailed(taskId, errorMessage);
+                    taskReconciler.onJobFailed(taskId, errorMessage);
                     break;
                 default:
                     log.debug("Informer: Unhandled phase {} for task {}", newPhase, taskId);
@@ -156,7 +155,7 @@ public class JobInformerService {
             String phase = determinePhase(job);
             if (!"COMPLETE".equals(phase) && !"FAILED".equals(phase)) {
                 log.warn("Informer: Job deleted unexpectedly for task {}", taskId);
-                taskEventCallback.onJobFailed(taskId, "Job deleted unexpectedly");
+                taskReconciler.onJobFailed(taskId, "Job deleted unexpectedly");
             }
         }
     }

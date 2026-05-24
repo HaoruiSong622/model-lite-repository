@@ -1,6 +1,5 @@
 package com.huawei.modellite.repository.infrastructure.k8s;
 
-import com.huawei.modellite.repository.weighttask.domain.service.TaskEventCallback;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobConditionBuilder;
@@ -19,7 +18,7 @@ import static org.mockito.Mockito.*;
 class InformerWatchIntegrationTest {
 
     @Mock
-    private TaskEventCallback taskEventCallback;
+    private TaskReconciler taskReconciler;
 
     @Mock
     private LeaderElectionService leaderElectionService;
@@ -37,7 +36,7 @@ class InformerWatchIntegrationTest {
     void setUp() {
         when(leaderElectionService.isLeader()).thenReturn(true);
         jobInformerService = new JobInformerService(
-                kubernetesClient, taskEventCallback, leaderElectionService, NAMESPACE
+                kubernetesClient, taskReconciler, leaderElectionService, NAMESPACE
         );
         eventHandler = (JobInformerService.JobEventHandler) jobInformerService.createEventHandler();
     }
@@ -50,7 +49,7 @@ class InformerWatchIntegrationTest {
 
         eventHandler.onUpdate(pendingJob, runningJob);
 
-        verify(taskEventCallback).onJobRunning(TASK_ID);
+        verify(taskReconciler).onJobRunning(TASK_ID);
     }
 
     @Test
@@ -61,7 +60,7 @@ class InformerWatchIntegrationTest {
 
         eventHandler.onUpdate(runningJob, completedJob);
 
-        verify(taskEventCallback).onJobCompleted(TASK_ID);
+        verify(taskReconciler).onJobCompleted(TASK_ID);
     }
 
     @Test
@@ -72,7 +71,7 @@ class InformerWatchIntegrationTest {
 
         eventHandler.onUpdate(runningJob, failedJob);
 
-        verify(taskEventCallback).onJobFailed(TASK_ID, "ImagePullBackOff");
+        verify(taskReconciler).onJobFailed(TASK_ID, "ImagePullBackOff");
     }
 
     @Test
@@ -85,9 +84,9 @@ class InformerWatchIntegrationTest {
 
         eventHandler.onUpdate(pendingJob, runningJob);
 
-        verify(taskEventCallback, never()).onJobRunning(anyString());
-        verify(taskEventCallback, never()).onJobCompleted(anyString());
-        verify(taskEventCallback, never()).onJobFailed(anyString(), anyString());
+        verify(taskReconciler, never()).onJobRunning(anyString());
+        verify(taskReconciler, never()).onJobCompleted(anyString());
+        verify(taskReconciler, never()).onJobFailed(anyString(), anyString());
     }
 
     @Test
@@ -97,7 +96,7 @@ class InformerWatchIntegrationTest {
 
         eventHandler.onDelete(runningJob, false);
 
-        verify(taskEventCallback).onJobFailed(TASK_ID, "Job deleted unexpectedly");
+        verify(taskReconciler).onJobFailed(TASK_ID, "Job deleted unexpectedly");
     }
 
     @Test
@@ -108,7 +107,7 @@ class InformerWatchIntegrationTest {
 
         eventHandler.onUpdate(runningJob1, runningJob2);
 
-        verify(taskEventCallback, times(1)).onJobRunning(TASK_ID);
+        verify(taskReconciler, times(1)).onJobRunning(TASK_ID);
     }
 
     private Job createJob(String taskId, int active, String conditionType, String conditionStatus) {

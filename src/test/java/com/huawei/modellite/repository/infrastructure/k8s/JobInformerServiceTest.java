@@ -1,6 +1,5 @@
 package com.huawei.modellite.repository.infrastructure.k8s;
 
-import com.huawei.modellite.repository.weighttask.domain.service.TaskEventCallback;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobConditionBuilder;
@@ -23,7 +22,7 @@ import static org.mockito.Mockito.*;
 class JobInformerServiceTest {
 
     @Mock
-    private TaskEventCallback taskEventCallback;
+    private TaskReconciler taskReconciler;
 
     @Mock
     private LeaderElectionService leaderElectionService;
@@ -41,7 +40,7 @@ class JobInformerServiceTest {
     void setUp() {
         when(leaderElectionService.isLeader()).thenReturn(true);
         jobInformerService = new JobInformerService(
-                kubernetesClient, taskEventCallback, leaderElectionService, NAMESPACE
+                kubernetesClient, taskReconciler, leaderElectionService, NAMESPACE
         );
         eventHandler = (JobInformerService.JobEventHandler) jobInformerService.createEventHandler();
     }
@@ -54,7 +53,7 @@ class JobInformerServiceTest {
 
         eventHandler.onUpdate(pendingJob, runningJob);
 
-        verify(taskEventCallback).onJobRunning(TASK_ID);
+        verify(taskReconciler).onJobRunning(TASK_ID);
     }
 
     @Test
@@ -65,7 +64,7 @@ class JobInformerServiceTest {
 
         eventHandler.onUpdate(runningJob, completedJob);
 
-        verify(taskEventCallback).onJobCompleted(TASK_ID);
+        verify(taskReconciler).onJobCompleted(TASK_ID);
     }
 
     @Test
@@ -76,7 +75,7 @@ class JobInformerServiceTest {
 
         eventHandler.onUpdate(runningJob, failedJob);
 
-        verify(taskEventCallback).onJobFailed(TASK_ID, "BackoffLimitExceeded");
+        verify(taskReconciler).onJobFailed(TASK_ID, "BackoffLimitExceeded");
     }
 
     @Test
@@ -88,7 +87,7 @@ class JobInformerServiceTest {
 
         eventHandler.onUpdate(pendingJob, runningJob);
 
-        verifyNoInteractions(taskEventCallback);
+        verifyNoInteractions(taskReconciler);
     }
 
     @Test
@@ -99,7 +98,7 @@ class JobInformerServiceTest {
 
         eventHandler.onUpdate(runningJob1, runningJob2);
 
-        verify(taskEventCallback, times(1)).onJobRunning(TASK_ID);
+        verify(taskReconciler, times(1)).onJobRunning(TASK_ID);
     }
 
     @Test
@@ -109,7 +108,7 @@ class JobInformerServiceTest {
 
         eventHandler.onDelete(runningJob, false);
 
-        verify(taskEventCallback).onJobFailed(TASK_ID, "Job deleted unexpectedly");
+        verify(taskReconciler).onJobFailed(TASK_ID, "Job deleted unexpectedly");
     }
 
     @Test
@@ -119,7 +118,7 @@ class JobInformerServiceTest {
 
         eventHandler.onDelete(completedJob, false);
 
-        verify(taskEventCallback, never()).onJobFailed(anyString(), anyString());
+        verify(taskReconciler, never()).onJobFailed(anyString(), anyString());
     }
 
     @Test
@@ -129,7 +128,7 @@ class JobInformerServiceTest {
 
         eventHandler.onAdd(pendingJob);
 
-        verifyNoInteractions(taskEventCallback);
+        verifyNoInteractions(taskReconciler);
     }
 
     @Test
@@ -140,13 +139,13 @@ class JobInformerServiceTest {
         Job completedJob = createJob(TASK_ID, 0, "Complete", "True");
 
         eventHandler.onAdd(pendingJob);
-        verifyNoInteractions(taskEventCallback);
+        verifyNoInteractions(taskReconciler);
 
         eventHandler.onUpdate(pendingJob, runningJob);
-        verify(taskEventCallback).onJobRunning(TASK_ID);
+        verify(taskReconciler).onJobRunning(TASK_ID);
 
         eventHandler.onUpdate(runningJob, completedJob);
-        verify(taskEventCallback).onJobCompleted(TASK_ID);
+        verify(taskReconciler).onJobCompleted(TASK_ID);
     }
 
     private Job createJob(String taskId, int active, String conditionType, String conditionStatus) {

@@ -161,6 +161,56 @@ class TaskReconcilerTest {
         reconciler.scanPausedTasks();
     }
 
+    @Test
+    @DisplayName("onJobRunning should call taskEventCallback.onJobRunning")
+    void onJobRunningCallsCallback() {
+        String taskId = UUID.randomUUID().toString();
+        reconciler.onJobRunning(taskId);
+        verify(taskEventCallback).onJobRunning(taskId);
+    }
+
+    @Test
+    @DisplayName("onJobCompleted should call taskEventCallback.onJobCompleted")
+    void onJobCompletedCallsCallback() {
+        String taskId = UUID.randomUUID().toString();
+        reconciler.onJobCompleted(taskId);
+        verify(taskEventCallback).onJobCompleted(taskId);
+    }
+
+    @Test
+    @DisplayName("onJobFailed should enrich error with Pod logs and call taskEventCallback.onJobFailed")
+    void onJobFailedEnrichesErrorWithPodLogs() {
+        String taskId = UUID.randomUUID().toString();
+        when(k8sJobService.getJobPodLogs(taskId, 50)).thenReturn("Error: disk full\nFailed to copy file");
+
+        reconciler.onJobFailed(taskId, "BackoffLimitExceeded");
+
+        verify(taskEventCallback).onJobFailed(eq(taskId), contains("BackoffLimitExceeded"));
+        verify(taskEventCallback).onJobFailed(eq(taskId), contains("Pod logs"));
+    }
+
+    @Test
+    @DisplayName("onJobFailed should fall back to initial error when Pod logs unavailable")
+    void onJobFailedFallsBackWhenPodLogsUnavailable() {
+        String taskId = UUID.randomUUID().toString();
+        when(k8sJobService.getJobPodLogs(taskId, 50)).thenReturn(null);
+
+        reconciler.onJobFailed(taskId, "BackoffLimitExceeded");
+
+        verify(taskEventCallback).onJobFailed(taskId, "BackoffLimitExceeded");
+    }
+
+    @Test
+    @DisplayName("onJobFailed should fall back to initial error when Pod logs fetch throws exception")
+    void onJobFailedFallsBackWhenPodLogsFetchThrows() {
+        String taskId = UUID.randomUUID().toString();
+        when(k8sJobService.getJobPodLogs(taskId, 50)).thenThrow(new RuntimeException("Pod not found"));
+
+        reconciler.onJobFailed(taskId, "BackoffLimitExceeded");
+
+        verify(taskEventCallback).onJobFailed(taskId, "BackoffLimitExceeded");
+    }
+
     private UploadTask createMockTask(UUID taskId, TaskStatus status) {
         UploadTask task = mock(UploadTask.class);
         when(task.getTaskId()).thenReturn(taskId);
