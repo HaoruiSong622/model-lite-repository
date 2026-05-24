@@ -2298,30 +2298,40 @@ sequenceDiagram
         K8s->>K8s: Pod exit(非0)
         K8s->>Informer: Job Failed
         Informer->>Reconciler: onJobFailed
-        Reconciler->>WT_CTX: uploadTask.fail("校验失败: ...")
-        Reconciler->>MW_CTX: 更新版本状态 → UploadFailed
+        Reconciler->>AppSvc: onJobFailed(taskId, errorMessage)
+        AppSvc->>WT_CTX: uploadTask.fail("校验失败: ...")
+        AppSvc->>AppSvc: 持久化任务状态
+        AppSvc->>MW_CTX: 更新版本状态 → UploadFailed
     end
 
     Note over K8s: === 阶段 2：拷贝 ===
-    Reconciler->>WT_CTX: uploadTask.start() → Running
-    Reconciler->>MW_CTX: 更新版本状态 → Uploading
+    Reconciler->>AppSvc: onJobRunning(taskId)
+    AppSvc->>WT_CTX: uploadTask.start() → Running
+    AppSvc->>AppSvc: 持久化任务状态
+    AppSvc->>MW_CTX: 更新版本状态 → Uploading
 
     loop 定时轮询进度
         Reconciler->>K8s: 读取 Pod 日志
         K8s-->>Reconciler: progress JSON
-        Reconciler->>WT_CTX: updateProgress(percent)
+        Reconciler->>AppSvc: updateProgress(taskId, percent)
+        AppSvc->>WT_CTX: updateProgress(percent)
+        AppSvc->>AppSvc: 持久化进度
     end
 
     alt 拷贝成功
         K8s->>Informer: Job Complete
         Informer->>Reconciler: onJobCompleted
-        Reconciler->>WT_CTX: uploadTask.complete()
-        Reconciler->>MW_CTX: 更新版本状态 → Available
+        Reconciler->>AppSvc: onJobCompleted(taskId)
+        AppSvc->>WT_CTX: uploadTask.complete()
+        AppSvc->>AppSvc: 持久化任务状态
+        AppSvc->>MW_CTX: 更新版本状态 → Available
     else 拷贝失败
         K8s->>Informer: Job Failed
         Informer->>Reconciler: onJobFailed
-        Reconciler->>WT_CTX: uploadTask.fail(errorMessage)
-        Reconciler->>MW_CTX: 更新版本状态 → UploadFailed
+        Reconciler->>AppSvc: onJobFailed(taskId, errorMessage)
+        AppSvc->>WT_CTX: uploadTask.fail(errorMessage)
+        AppSvc->>AppSvc: 持久化任务状态
+        AppSvc->>MW_CTX: 更新版本状态 → UploadFailed
     end
 ```
 
@@ -2806,6 +2816,7 @@ sequenceDiagram
     actor User as 用户/外部服务
     participant API as API层<br/>UploadTaskApi
     participant AppSvc as 应用服务层<br/>UploadApplicationService
+    participant MW_CTX as 模型权重上下文<br/>Model/ModelVersion
     participant Domain as Domain层<br/>UploadTask聚合
     participant K8sSvc as Domain层<br/>K8sJobService(接口)
     participant Infra as Infrastructure层<br/>Fabric8K8sJobService
@@ -2813,56 +2824,81 @@ sequenceDiagram
     participant InfraInf as Infrastructure层<br/>InformerManager
     participant Recon as Infrastructure层<br/>TaskReconciler
 
-    %% 阶段1: 创建任务
-    User->>API: POST /v2/ui/upload-tasks
-    API->>AppSvc: createUploadTask(request)
-    AppSvc->>Domain: UploadTask.create(sourcePath)
+    %% 阶段1: 创建任务 + 自动下发 K8s Job（合并为一个请求）
+    User->>API: POST /v2/ui/models/{modelId}/upload-tasks
+    API->>AppSvc: createUploadTask(modelId, request)
+
+    AppSvc->>MW_CTX: 创建空版本 (status=NoWeight, isRegistered=false)
+    MW_CTX-->>AppSvc: versionId
+
+    AppSvc->>AppSvc: 检查活跃任务（findActiveByVersionId）
+    alt 已存在活跃任务
+        AppSvc-->>API: throw UPLOAD_TASK_ACTIVE_EXISTS
+    end
+
+    AppSvc->>Domain: UploadTask.createUploadTask(sourcePath)
     Domain-->>AppSvc: UploadTask(状态=PENDING)
     AppSvc->>AppSvc: 持久化任务
-    AppSvc-->>API: 返回 taskId
-    API-->>User: 201 Created
 
-    %% 阶段2: 启动任务（创建K8s Job）
-    User->>API: POST /v2/ui/upload-tasks/{taskId}/start
-    API->>AppSvc: startUploadTask(taskId)
-    AppSvc->>Domain: uploadTask.start()
-    Domain->>Domain: 状态守卫(PENDING→RUNNING)
-    Domain-->>AppSvc: UploadTask(状态=RUNNING)
+    %% 阶段2: 自动创建 K8s Job（同一请求流内，无需额外接口）
     AppSvc->>K8sSvc: createJob(uploadJobSpec)
     Note over K8sSvc: Domain层定义接口契约
     K8sSvc->>Infra: createJob(uploadJobSpec)
     Note over Infra: 防腐层转换<br/>UploadJobSpec → fabric8 Job
     Infra->>K8s: POST /apis/batch/v1/namespaces/{ns}/jobs
     K8s-->>Infra: Job Created
-    Infra->>Infra: 转换响应 → JobCreateResult
-    Infra-->>K8sSvc: JobCreateResult(jobName, PENDING)
-    K8sSvc-->>AppSvc: JobCreateResult
-    AppSvc->>AppSvc: 更新任务 jobName
-    AppSvc-->>API: 返回结果
+    Infra-->>K8sSvc: success
+    K8sSvc-->>AppSvc: success
+
+    AppSvc-->>API: UploadTaskResponse(taskId, status=Pending)
     API-->>User: 200 OK
 
-    %% 阶段3: K8s 状态监听
-    K8s->>InfraInf: Pod状态变化事件
-    InfraInf->>InfraInf: 解析事件 → JobStatusDTO
-    InfraInf->>AppSvc: 回调: onJobStatusChanged(taskId, JobStatusDTO)
-    AppSvc->>Domain: uploadTask.updateProgress(progress)
-    AppSvc->>Domain: 根据JobPhase转换任务状态
-    Domain->>Domain: 状态守卫校验
-    AppSvc->>AppSvc: 持久化状态变更
+    Note over K8s,Recon: === 异步执行阶段 ===
 
-    %% 阶段4: 任务完成
+    K8s->>K8s: Job Pod 启动
+
+    Note over K8s: === 阶段 3：校验 ===
+    K8s->>K8s: 检查源目录存在且非空
+    K8s->>K8s: 检查文件后缀白名单
+
+    alt 校验失败
+        K8s->>K8s: Pod exit(非0)
+        K8s->>Informer: Job Failed
+        Informer->>Recon: onJobFailed
+        Recon->>AppSvc: onJobFailed(taskId, errorMessage)
+        AppSvc->>Domain: uploadTask.fail(errorMessage)
+        AppSvc->>AppSvc: 持久化任务状态
+        AppSvc->>MW_CTX: 更新版本状态 → UploadFailed
+    end
+
+    Note over K8s: === 阶段 4：拷贝 ===
+    Recon->>AppSvc: onJobRunning(taskId)
+    AppSvc->>Domain: uploadTask.start() → Running
+    AppSvc->>AppSvc: 持久化任务状态
+    AppSvc->>MW_CTX: 更新版本状态 → Uploading
+
+    loop 定时轮询进度
+        Recon->>K8s: 读取 Pod 日志
+        K8s-->>Recon: progress JSON
+        Recon->>AppSvc: updateProgress(taskId, percent)
+        AppSvc->>Domain: uploadTask.updateProgress(percent)
+        AppSvc->>AppSvc: 持久化进度
+    end
+
     alt 上传成功
-        K8s->>InfraInf: Job Succeeded
-        InfraInf->>AppSvc: onJobStatusChanged(taskId, SUCCEEDED)
+        K8s->>Informer: Job Complete
+        Informer->>Recon: onJobCompleted
+        Recon->>AppSvc: onJobCompleted(taskId)
         AppSvc->>Domain: uploadTask.complete()
-        Domain->>Domain: 状态守卫(RUNNING→COMPLETED)
-        AppSvc->>AppSvc: 更新版本状态为 AVAILABLE
-    else 上传失败
-        K8s->>InfraInf: Job Failed
-        InfraInf->>AppSvc: onJobStatusChanged(taskId, FAILED, podMessage)
-        AppSvc->>Domain: uploadTask.fail(podMessage)
-        Domain->>Domain: 状态守卫(RUNNING→FAILED)
-        AppSvc->>AppSvc: 更新版本状态为 UPLOAD_FAILED
+        AppSvc->>AppSvc: 持久化任务状态
+        AppSvc->>MW_CTX: 更新版本状态 → Available
+    else 拷贝失败
+        K8s->>Informer: Job Failed
+        Informer->>Recon: onJobFailed
+        Recon->>AppSvc: onJobFailed(taskId, errorMessage)
+        AppSvc->>Domain: uploadTask.fail(errorMessage)
+        AppSvc->>AppSvc: 持久化任务状态
+        AppSvc->>MW_CTX: 更新版本状态 → UploadFailed
     end
 
     %% 阶段5: 定时对账
@@ -2878,12 +2914,11 @@ sequenceDiagram
 
 | 序号 | 阶段 | 关键点 |
 |------|------|--------|
-| 1-4 | 任务创建 | 纯 Domain 层操作，不涉及 Infrastructure |
-| 5-8 | Job 创建 | AppSvc 通过 `K8sJobService` 接口调用，`UploadJobSpec` 作为防腐层 DTO |
-| 9 | K8s API 调用 | 仅在 Infrastructure 层内部发生，使用 fabric8 client |
-| 10-13 | 状态监听 | Informer 在 Infrastructure 层监听，通过回调将 `JobStatusDTO` 传递给 AppSvc |
-| 14-19 | 状态转换 | Domain 层聚合方法负责状态守卫，AppSvc 负责版本状态协调 |
-| 20-24 | 定时对账 | TaskReconciler 在 Infrastructure 层运行，Leader Election 确保单节点执行 |
+| 1-5 | 任务创建 + Job 下发 | 同一请求流内完成：创建版本 → 创建 UploadTask → 持久化 → 自动创建 K8s Job。**无独立的 `/start` 接口** |
+| 6 | K8s API 调用 | 仅在 Infrastructure 层内部发生，使用 fabric8 client |
+| 7-10 | 状态监听 | Informer 在 Infrastructure 层监听，通过回调将 Job 状态传递给 TaskReconciler |
+| 11-13 | 状态转换 | Domain 层聚合方法负责状态守卫，TaskReconciler 负责版本状态协调 |
+| 14-16 | 定时对账 | TaskReconciler 在 Infrastructure 层运行，Leader Election 确保单节点执行 |
 
 ---
 
@@ -5026,6 +5061,558 @@ public void cleanupOnStartup() {
 **Then**:
 - HTTP 状态码 = 400
 - Response.code = 0102009
+
+---
+
+#### 7.3.18 POST /v2/ui/models/{modelId}/upload-tasks — 创建上传任务成功（PVC）
+
+**Given**:
+- 数据库中存在模型（id=modelId，当前 2 个版本）
+- 请求参数:
+```json
+{
+    "sourceType": "PVC",
+    "sourcePvcName": "source-pvc",
+    "sourceInternalPath": "/models/glm-5"
+}
+```
+
+**When**:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks`
+
+**Then**:
+- HTTP 状态码 = 200
+- Response.data.sourceType = "PVC"
+- Response.data.sourcePath = "source-pvc:/models/glm-5"
+
+---
+
+#### 7.3.19 POST /v2/ui/models/{modelId}/upload-tasks/{taskId}/cancel — 终态拒绝
+
+**Given**:
+- 数据库中存在 Completed 状态的上传任务
+
+**When**:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks/{taskId}/cancel`
+
+**Then**:
+- HTTP 状态码 = 409
+- Response.code = 0102042（UPLOAD_TASK_ALREADY_TERMINATED）
+
+---
+
+### 7.4 K8s Job 服务测试
+
+> 使用 `@EnableKubernetesMockClient(crud = true)` + `KubernetesMockServer` 进行集成测试。
+> Mock server 在 JVM 进程内自动启动，模拟 K8s API Server 行为，无需安装 K8s 集群。
+
+#### 7.4.1 Fabric8K8sJobService.createUploadJob — NFS 模式成功创建
+
+**Given**:
+- KubernetesMockServer 已启动（crud = true）
+- UploadJobSpec 使用 NFS 模式:
+  ```java
+  UploadJobSpec spec = UploadJobSpec.ofNfs("task-001", "model-001", "version-001",
+          "10.0.1.100", "/data/models", "pvc-target", "file-copier:latest", "default");
+  ```
+
+**When**:
+- 调用 `k8sJobService.createUploadJob(spec)`
+
+**Then**:
+- 无异常抛出
+- 通过 mock server 验证 Job 已创建:
+  ```java
+  Job job = client.batch().v1().jobs()
+          .inNamespace("default")
+          .withName("upload-task-001")
+          .get();
+  assertNotNull(job);
+  assertEquals("task-001", job.getMetadata().getLabels().get("modellite/upload-task-id"));
+  ```
+- ConfigMap 已创建: `upload-params-task-001`
+- Secret 未创建（NFS 模式不需要）
+
+---
+
+#### 7.4.2 Fabric8K8sJobService.createUploadJob — 幂等性（重复创建）
+
+**Given**:
+- KubernetesMockServer 已启动（crud = true）
+- 已调用 `createUploadJob(spec)` 创建了一次 Job
+
+**When**:
+- 再次调用 `k8sJobService.createUploadJob(spec)`（相同 taskId）
+
+**Then**:
+- 无异常抛出（幂等处理）
+- Job 仍然只有一个（未被重复创建）
+- 记录 warn 日志
+
+---
+
+#### 7.4.3 Fabric8K8sJobService.getJobStatus — 5 种状态映射
+
+**Given**:
+- KubernetesMockServer 已启动（crud = true）
+
+**When / Then**（分 5 个子场景）:
+
+| 子场景 | 操作 | 预期返回 |
+|--------|------|----------|
+| NOT_FOUND | 查询不存在的 Job | `JobStatus.NOT_FOUND` |
+| PENDING | 创建 Job 但 Pod 未调度 | `JobStatus.PENDING` |
+| RUNNING | Job 的 `status.active > 0` | `JobStatus.RUNNING` |
+| COMPLETE | Job 的 `status.succeeded > 0` | `JobStatus.COMPLETE` |
+| FAILED | Job 的 `status.failed > 0` | `JobStatus.FAILED` |
+
+---
+
+#### 7.4.4 Fabric8K8sJobService.deleteJob — 幂等删除
+
+**Given**:
+- KubernetesMockServer 已启动（crud = true）
+- 已创建 Job `upload-task-001`
+
+**When**:
+- 调用 `k8sJobService.deleteJob("task-001")`
+
+**Then**:
+- Job 被删除（通过 mock server 验证 `get()` 返回 null）
+- 再次调用 `deleteJob("task-001")` 不抛异常（幂等）
+
+---
+
+#### 7.4.5 Fabric8K8sJobService.deleteJobResources — ConfigMap + Secret 清理
+
+**Given**:
+- KubernetesMockServer 已启动（crud = true）
+- 已创建 ConfigMap `upload-params-task-001` 和 Secret `upload-secret-task-001`
+
+**When**:
+- 调用 `k8sJobService.deleteJobResources("task-001")`
+
+**Then**:
+- ConfigMap 被删除
+- Secret 被删除
+- 任一资源不存在时不抛异常（静默处理）
+
+---
+
+#### 7.4.6 Fabric8K8sJobService.getJobPodLogs — 读取 Pod 日志
+
+**Given**:
+- KubernetesMockServer 已启动
+- 已创建 Job 且 Pod 有日志输出
+
+**When**:
+- 调用 `k8sJobService.getJobPodLogs("task-001", 10)`
+
+**Then**:
+- 返回日志字符串（非 null）
+- 日志内容包含进度 JSON 格式: `{"progress": 45}` 或 `{"phase": "validated"}`
+
+---
+
+#### 7.4.7 Fabric8K8sJobService.jobExists — 存在性检查
+
+**Given**:
+- KubernetesMockServer 已启动（crud = true）
+
+**When / Then**:
+- 已创建 Job → `jobExists("task-001")` 返回 `true`
+- 未创建 Job → `jobExists("task-999")` 返回 `false`
+- Job 被删除后 → `jobExists("task-001")` 返回 `false`
+
+---
+
+### 7.5 版本状态同步测试
+
+> 测试 UploadTask 状态变更与 ModelVersion 状态之间的跨上下文协调。
+
+#### 7.5.1 ModelVersion.updateStatus — NoWeight→Uploading
+
+**Given**:
+- ModelVersion，status = NoWeight
+
+**When**:
+- 调用 `version.updateStatus(VersionStatus.UPLOADING)`
+
+**Then**:
+- status = Uploading
+- 无异常抛出
+
+---
+
+#### 7.5.2 ModelVersion.updateStatus — Uploading→Available
+
+**Given**:
+- ModelVersion，status = Uploading
+
+**When**:
+- 调用 `version.updateStatus(VersionStatus.AVAILABLE)`
+
+**Then**:
+- status = Available
+- 无异常抛出
+
+---
+
+#### 7.5.3 ModelVersion.updateStatus — Uploading→UploadFailed
+
+**Given**:
+- ModelVersion，status = Uploading
+
+**When**:
+- 调用 `version.updateStatus(VersionStatus.UPLOAD_FAILED)`
+
+**Then**:
+- status = UploadFailed
+- 无异常抛出
+
+---
+
+#### 7.5.4 ModelVersion.updateStatus — NoWeight→UploadFailed
+
+**Given**:
+- ModelVersion，status = NoWeight
+
+**When**:
+- 调用 `version.updateStatus(VersionStatus.UPLOAD_FAILED)`
+
+**Then**:
+- status = UploadFailed
+- 无异常抛出
+
+---
+
+#### 7.5.5 ModelVersion.updateStatus — 非法转换拒绝
+
+**Given**:
+- 分别创建 status = Available / ValidationFailed 的 ModelVersion
+
+**When / Then**（分多个子场景）:
+
+| 起始状态 | 目标状态 | 预期结果 |
+|---------|---------|---------|
+| Available | Uploading | 抛 ModelLiteException |
+| Available | UploadFailed | 抛 ModelLiteException |
+| ValidationFailed | Uploading | 抛 ModelLiteException |
+| UploadFailed | Uploading | 抛 ModelLiteException |
+
+---
+
+#### 7.5.6 UploadApplicationService — 创建任务后版本状态为 NoWeight
+
+**Given**:
+- ModelRepository 返回有效模型（当前 2 个版本）
+- UploadTaskRepository 返回 empty（无活跃任务）
+
+**When**:
+- 调用 `uploadApplicationService.createUploadTask(modelId, nfsRequest, "user1")`
+
+**Then**:
+- 返回 UploadTaskResponse，status = Pending
+- 验证 ModelRepository.updateVersion 被调用，版本状态为 NoWeight
+- 验证 K8sJobService.createUploadJob 被调用
+
+---
+
+#### 7.5.7 UploadApplicationService — 取消任务后版本状态为 UploadFailed
+
+**Given**:
+- UploadTaskRepository 返回 Running 状态的任务
+- ModelRepository 返回有效模型
+
+**When**:
+- 调用 `uploadApplicationService.cancelUploadTask(modelId, taskId)`
+
+**Then**:
+- 验证 UploadTask.cancel() 被调用
+- 验证 ModelRepository.updateVersion 被调用，版本状态更新为 UploadFailed
+- 验证 K8sJobService.deleteJob 被调用
+
+---
+
+#### 7.5.8 UploadApplicationService — 乐观锁冲突时版本状态不被错误更新
+
+**Given**:
+- UploadTaskRepository.update 模拟乐观锁冲突（throw ModelLiteException）
+- UploadTaskRepository 返回 Running 状态的任务
+
+**When**:
+- 调用 `uploadApplicationService.cancelUploadTask(modelId, taskId)`
+
+**Then**:
+- 抛出 ModelLiteException（乐观锁冲突）
+- 验证 ModelRepository.updateVersion **未被调用**（事务回滚保护）
+- 版本状态保持不变
+
+---
+
+### 7.6 补充测试用例
+
+#### 7.2.6 UploadTaskRepository.update — 乐观锁 version 自增验证
+
+**Given**:
+- H2 数据库中有 Pending 状态的任务（version = 0）
+
+**When**:
+- 调用 `uploadTask.start()` → `uploadTaskRepository.update(uploadTask)`
+- 再调用 `uploadTaskRepository.findById(taskId)`
+
+**Then**:
+- status = Running
+- version = 1（自增 1）
+
+---
+
+#### 7.2.7 UploadTaskRepository.update — 乐观锁冲突抛异常
+
+**Given**:
+- H2 数据库中有 Pending 状态的任务（version = 0）
+- 两个线程同时加载该任务（version 都为 0）
+
+**When**:
+- 线程 A: `uploadTask.start()` → `uploadTaskRepository.update(uploadTask)` → 成功
+- 线程 B: `uploadTask.cancel()` → `uploadTaskRepository.update(uploadTask)` → version 仍为 0
+
+**Then**:
+- 线程 B 的 update 抛 ModelLiteException（乐观锁冲突）
+- 数据库中 version = 1，status = Running（线程 A 的结果）
+
+---
+
+#### 7.1.22 UploadTask.start — Paused→Running
+
+**Given**:
+- UploadTask，status = Paused
+
+**When**:
+- 调用 `uploadTask.start()`
+
+**Then**:
+- status = Running
+- 无异常抛出
+
+---
+
+#### 7.1.23 UploadTask.fail — Failed 状态再次 fail 拒绝（终态保护）
+
+**Given**:
+- UploadTask，status = Failed
+
+**When**:
+- 调用 `uploadTask.fail("another error")`
+
+**Then**:
+- 抛出 ModelLiteException，ErrorCode = UPLOAD_TASK_ALREADY_TERMINATED(0102042)
+- errorMessage 保持原值不变
+
+---
+
+### 7.7 全流程集成测试
+
+> 使用 `@SpringBootTest` + H2 + `@EnableKubernetesMockClient(crud = true)` 搭建轻量级集成测试环境。
+> 验证从用户创建上传任务到 Job 状态变化、Informer 感知、TaskReconciler 对账、最终状态更新的完整生命周期。
+> 
+> **测试环境说明**:
+> - H2 内存数据库：提供持久层
+> - KubernetesMockServer（crud=true）：模拟 K8s API Server，支持 Job 创建/状态修改/Watch 事件
+> - TaskReconciler：测试中通过 `@TestPropertySource` 覆盖定时扫描间隔为 100ms，或手动调用 `reconcile()` 方法
+> - Informer：连接到 mock server，Job 状态变化时自动触发事件回调
+
+#### 7.7.1 FF-1 — 完整成功流程：创建 → 校验通过 → 拷贝完成
+
+**Given**:
+- 数据库中存在模型（id=modelId，当前 2 个版本）
+- KubernetesMockServer 已启动（crud = true）
+- 请求参数（NFS 模式）:
+  ```json
+  {
+      "sourceType": "NFS",
+      "nfsServer": "10.0.1.100",
+      "nfsPath": "/data/models/glm-5/v2"
+  }
+  ```
+
+**When**（阶段 1: 创建上传任务）:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks`
+
+**Then**（阶段 1 验证）:
+- HTTP 状态码 = 200
+- Response.data.status = "Pending"
+- 数据库 upload_task 表新增 1 条记录（status='Pending', progress=0, version=0）
+- 数据库 model_version 表新增 1 条记录（status='NoWeight'）
+- KubernetesMockServer 中存在对应的 Job（label `modellite/upload-task-id` 匹配 taskId）
+
+**When**（阶段 2: 模拟 Job 校验通过，Informer 感知）:
+- 修改 mock server 中 Job 的状态为 Running（`status.active = 1`）
+- 手动触发 `TaskReconciler.reconcile()`（或等待 100ms 定时扫描）
+
+**Then**（阶段 2 验证）:
+- 数据库 upload_task.status = "Running"
+- 数据库 model_version.status = "Uploading"
+- upload_task.version = 1（乐观锁自增）
+
+**When**（阶段 3: 模拟 Job 拷贝完成）:
+- 修改 mock server 中 Job 的状态为 Complete（`status.succeeded = 1`, `status.active = null`）
+- 手动触发 `TaskReconciler.reconcile()`
+
+**Then**（阶段 3 验证）:
+- 数据库 upload_task.status = "Completed"
+- 数据库 upload_task.progress = 100
+- 数据库 upload_task.version = 2
+- 数据库 model_version.status = "Available"
+- KubernetesMockServer 中 Secret 已被清理（CIFS 凭证安全）
+
+---
+
+#### 7.7.2 FF-2 — 校验失败流程：创建 → 校验失败 → 终态
+
+**Given**:
+- 数据库中存在模型
+- KubernetesMockServer 已启动（crud = true）
+
+**When**（阶段 1: 创建上传任务）:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks`
+
+**Then**（阶段 1 验证）:
+- Response.data.status = "Pending"
+- mock server 中存在对应 Job
+
+**When**（阶段 2: 模拟 Job 校验失败）:
+- 修改 mock server 中 Job 的状态为 Failed（`status.failed = 1`）
+- 手动触发 `TaskReconciler.reconcile()`
+
+**Then**（阶段 2 验证）:
+- 数据库 upload_task.status = "Failed"
+- 数据库 upload_task.error_message 不为空（包含失败原因）
+- 数据库 model_version.status = "UploadFailed"
+
+---
+
+#### 7.7.3 FF-3 — 暂停恢复流程：创建 → 运行 → 暂停 → 恢复 → 完成
+
+**Given**:
+- 数据库中存在模型
+- KubernetesMockServer 已启动（crud = true）
+
+**When**（阶段 1-2: 创建 → 运行，同 FF-1 前两阶段）:
+- 创建任务 → 模拟 Job Running → 触发对账
+
+**Then**（阶段 2 验证）:
+- upload_task.status = "Running"
+
+**When**（阶段 3: 用户暂停）:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks/{taskId}/pause`
+
+**Then**（阶段 3 验证）:
+- HTTP 状态码 = 200
+- 数据库 upload_task.status = "Paused"
+- mock server 中 Job 已被删除（`jobExists(taskId)` = false）
+
+**When**（阶段 4: 用户恢复）:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks/{taskId}/resume`
+
+**Then**（阶段 4 验证）:
+- HTTP 状态码 = 200
+- 数据库 upload_task.status = "Pending"（等待 TaskReconciler 重建 Job）
+
+**When**（阶段 5: TaskReconciler 重建 Job 并完成）:
+- 手动触发 `TaskReconciler.reconcile()`（重建 Job）
+- 修改 mock server 中 Job 状态为 Running → 触发对账 → status=Running
+- 修改 mock server 中 Job 状态为 Complete → 触发对账
+
+**Then**（阶段 5 验证）:
+- 数据库 upload_task.status = "Completed"
+- 数据库 upload_task.progress = 100
+- 数据库 model_version.status = "Available"
+
+---
+
+#### 7.7.4 FF-4 — 取消流程：创建 → 运行 → 用户取消
+
+**Given**:
+- 数据库中存在模型
+- KubernetesMockServer 已启动（crud = true）
+
+**When**（阶段 1-2: 创建 → 运行，同 FF-1 前两阶段）:
+- 创建任务 → 模拟 Job Running → 触发对账
+
+**Then**（阶段 2 验证）:
+- upload_task.status = "Running"
+
+**When**（阶段 3: 用户取消）:
+- 调用 `POST /v2/ui/models/{modelId}/upload-tasks/{taskId}/cancel`
+
+**Then**（阶段 3 验证）:
+- HTTP 状态码 = 200
+- 数据库 upload_task.status = "Cancelled"
+- mock server 中 Job 已被删除
+- 数据库 model_version.status = "UploadFailed"
+
+---
+
+#### 7.7.5 FF-5 — 拷贝失败流程：创建 → 运行 → 拷贝失败
+
+**Given**:
+- 数据库中存在模型
+- KubernetesMockServer 已启动（crud = true）
+
+**When**（阶段 1-2: 创建 → 运行，同 FF-1 前两阶段）:
+- 创建任务 → 模拟 Job Running → 触发对账
+
+**Then**（阶段 2 验证）:
+- upload_task.status = "Running"
+
+**When**（阶段 3: 模拟 rsync 拷贝失败）:
+- 修改 mock server 中 Job 的状态为 Failed（`status.failed = 1`）
+- 手动触发 `TaskReconciler.reconcile()`
+
+**Then**（阶段 3 验证）:
+- 数据库 upload_task.status = "Failed"
+- 数据库 upload_task.error_message 不为空
+- 数据库 model_version.status = "UploadFailed"
+
+---
+
+#### 7.7.6 FF-6 — 进度更新流程：创建 → 运行 → 进度更新 → 完成
+
+**Given**:
+- 数据库中存在模型
+- KubernetesMockServer 已启动（crud = true）
+
+**When**（阶段 1-2: 创建 → 运行，同 FF-1 前两阶段）:
+- 创建任务 → 模拟 Job Running → 触发对账
+
+**Then**（阶段 2 验证）:
+- upload_task.status = "Running"
+- upload_task.progress = 0
+
+**When**（阶段 3: 模拟进度更新）:
+- 在 mock server 中为 Pod 添加日志: `{"progress": 45}`
+- 手动触发 `TaskReconciler.reconcile()`
+
+**Then**（阶段 3 验证）:
+- 数据库 upload_task.progress = 45
+- upload_task.version 自增
+
+**When**（阶段 4: 模拟进度继续更新）:
+- 在 mock server 中为 Pod 添加日志: `{"progress": 78}`
+- 手动触发 `TaskReconciler.reconcile()`
+
+**Then**（阶段 4 验证）:
+- 数据库 upload_task.progress = 78
+
+**When**（阶段 5: 模拟 Job 完成）:
+- 修改 mock server 中 Job 状态为 Complete
+- 手动触发 `TaskReconciler.reconcile()`
+
+**Then**（阶段 5 验证）:
+- 数据库 upload_task.status = "Completed"
+- 数据库 upload_task.progress = 100（强制置为 100）
+- 数据库 model_version.status = "Available"
 
 ---
 
