@@ -21,6 +21,7 @@ import com.huawei.modellite.repository.weighttask.domain.aggregate.uploadtask.Up
 import com.huawei.modellite.repository.weighttask.domain.dto.UploadJobSpec;
 import com.huawei.modellite.repository.weighttask.domain.repository.UploadTaskRepository;
 import com.huawei.modellite.repository.weighttask.domain.service.K8sJobService;
+import com.huawei.modellite.repository.weighttask.domain.service.TaskEventCallback;
 
 import org.springframework.stereotype.Service;
 
@@ -31,7 +32,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class UploadApplicationService {
+public class UploadApplicationService implements TaskEventCallback {
 
     private final ModelRepository modelRepository;
     private final UploadTaskRepository uploadTaskRepository;

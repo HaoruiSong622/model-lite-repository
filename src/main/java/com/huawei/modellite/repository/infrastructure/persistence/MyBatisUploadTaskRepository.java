@@ -9,6 +9,8 @@ import com.huawei.modellite.repository.weighttask.domain.repository.UploadTaskRe
 
 import org.springframework.stereotype.Repository;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -58,6 +60,18 @@ public class MyBatisUploadTaskRepository implements UploadTaskRepository {
     }
 
     @Override
+    public List<UploadTask> findTerminalTasksOlderThan(long maxAgeMs) {
+        LocalDateTime cutoffTime = LocalDateTime.now().minus(Duration.ofMillis(maxAgeMs));
+        return uploadTaskMapper.selectTerminalTasksOlderThan(cutoffTime);
+    }
+
+    @Override
+    public List<UploadTask> findByStatusInOlderThan(List<TaskStatus> statuses, long maxAgeMs) {
+        LocalDateTime cutoffTime = LocalDateTime.now().minus(Duration.ofMillis(maxAgeMs));
+        return uploadTaskMapper.selectByStatusInOlderThan(statuses, cutoffTime);
+    }
+
+    @Override
     public void update(UploadTask task) {
         int affectedRows = uploadTaskMapper.update(task);
         if (affectedRows == 0) {
@@ -67,7 +81,10 @@ public class MyBatisUploadTaskRepository implements UploadTaskRepository {
 
     @Override
     public void updateProgress(UploadTask task) {
-        uploadTaskMapper.updateProgress(task);
+        int affectedRows = uploadTaskMapper.updateProgress(task);
+        if (affectedRows == 0) {
+            throw new ModelLiteException(ErrorCode.UPLOAD_TASK_STATUS_CONFLICT, "任务进度已被其他操作更新");
+        }
     }
 
     @Override

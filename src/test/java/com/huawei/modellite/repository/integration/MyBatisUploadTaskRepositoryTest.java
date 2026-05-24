@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.jdbc.core.JdbcTemplate;
 
@@ -28,6 +30,8 @@ import org.springframework.context.annotation.Import;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Import(K8sJobServiceTestConfig.class)
+@TestPropertySource(properties = {"test.context.isolation=mybatis-upload-repo"})
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class MyBatisUploadTaskRepositoryTest extends AbstractIntegrationTest {
 
     @Autowired
@@ -123,6 +127,7 @@ class MyBatisUploadTaskRepositoryTest extends AbstractIntegrationTest {
         SourcePath sourcePath = SourcePath.ofPvc("pvc-1", "/internal");
 
         UploadTask task1 = UploadTask.createUploadTask(taskId1, modelId, versionId, sourcePath, "/t1", "user");
+        setField(task1, "createTime", LocalDateTime.now().minusSeconds(1));
         UploadTask task2 = UploadTask.createUploadTask(taskId2, modelId, versionId, sourcePath, "/t2", "user");
 
         repository.save(task1);
@@ -279,6 +284,29 @@ class MyBatisUploadTaskRepositoryTest extends AbstractIntegrationTest {
         Optional<UploadTask> found = repository.findById(taskId);
         assertTrue(found.isPresent());
         assertEquals(50, found.get().getProgress());
+        assertEquals(1L, found.get().getVersion());
+    }
+
+    @Test
+    @DisplayName("should throw exception on optimistic lock conflict when updating progress")
+    void should_throw_on_optimistic_lock_conflict_when_updateProgress() {
+        UUID taskId = UUID.randomUUID();
+        SourcePath sourcePath = SourcePath.ofNfs("srv", "/path");
+        UploadTask task = UploadTask.createUploadTask(taskId, modelId, versionId, sourcePath, "/t", "user");
+        repository.save(task);
+
+        // First updateProgress succeeds (db version: 0 -> 1)
+        setField(task, "progress", 30);
+        setField(task, "updateTime", LocalDateTime.now());
+        repository.updateProgress(task);
+
+        // Second updateProgress with stale version (still 0 in memory) fails
+        setField(task, "progress", 60);
+        setField(task, "updateTime", LocalDateTime.now());
+
+        ModelLiteException exception = assertThrows(ModelLiteException.class, () -> repository.updateProgress(task));
+        assertEquals(ErrorCode.UPLOAD_TASK_STATUS_CONFLICT, exception.getCode());
+        assertEquals("任务进度已被其他操作更新", exception.getMessage());
     }
 
     @Test
@@ -301,6 +329,92 @@ class MyBatisUploadTaskRepositoryTest extends AbstractIntegrationTest {
     void should_returnEmpty_when_findById_notExists() {
         Optional<UploadTask> found = repository.findById(UUID.randomUUID());
         assertTrue(found.isEmpty());
+    }
+
+    @Test
+    @DisplayName("should find terminal tasks older than specified age")
+    void should_findTerminalTasksOlderThan() {
+        SourcePath sourcePath = SourcePath.ofNfs("srv", "/path");
+
+        // Create 3 terminal tasks with different ages
+        UUID taskId1h = UUID.randomUUID();
+        UUID taskId25h = UUID.randomUUID();
+        UUID taskId49h = UUID.randomUUID();
+
+        UploadTask task1h = UploadTask.createUploadTask(taskId1h, modelId, versionId, sourcePath, "/t1h", "user");
+        setField(task1h, "status", TaskStatus.COMPLETED);
+        UploadTask task25h = UploadTask.createUploadTask(taskId25h, modelId, versionId, sourcePath, "/t25h", "user");
+        setField(task25h, "status", TaskStatus.FAILED);
+        UploadTask task49h = UploadTask.createUploadTask(taskId49h, modelId, versionId, sourcePath, "/t49h", "user");
+        setField(task49h, "status", TaskStatus.CANCELLED);
+
+        repository.save(task1h);
+        repository.save(task25h);
+        repository.save(task49h);
+
+        // Override create_time via JDBC to simulate different ages
+        // 1 hour ago, 25 hours ago, 49 hours ago
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(1), taskId1h);
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(25), taskId25h);
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(49), taskId49h);
+
+        // Also insert a non-terminal (Running) task that is old - should NOT be returned
+        UUID taskIdRunningOld = UUID.randomUUID();
+        UploadTask taskRunningOld = UploadTask.createUploadTask(taskIdRunningOld, modelId, versionId, sourcePath, "/t-running-old", "user");
+        setField(taskRunningOld, "status", TaskStatus.RUNNING);
+        repository.save(taskRunningOld);
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(30), taskIdRunningOld);
+
+        // Query with 24-hour threshold (24 * 3600 * 1000 ms)
+        long thresholdMs = 24 * 3600 * 1000L;
+        List<UploadTask> result = repository.findTerminalTasksOlderThan(thresholdMs);
+
+        // Should return only the 25h and 49h terminal tasks (not 1h, not Running)
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(t -> t.getTaskId().equals(taskId25h)));
+        assertTrue(result.stream().anyMatch(t -> t.getTaskId().equals(taskId49h)));
+    }
+
+    @Test
+    @DisplayName("should find tasks by status in and older than specified age")
+    void should_findByStatusInOlderThan() {
+        SourcePath sourcePath = SourcePath.ofNfs("srv", "/path");
+
+        UUID taskIdCompletedOld = UUID.randomUUID();
+        UUID taskIdCompletedRecent = UUID.randomUUID();
+        UUID taskIdFailedOld = UUID.randomUUID();
+        UUID taskIdPendingOld = UUID.randomUUID();
+
+        UploadTask taskCompletedOld = UploadTask.createUploadTask(taskIdCompletedOld, modelId, versionId, sourcePath, "/t-co", "user");
+        setField(taskCompletedOld, "status", TaskStatus.COMPLETED);
+        UploadTask taskCompletedRecent = UploadTask.createUploadTask(taskIdCompletedRecent, modelId, versionId, sourcePath, "/t-cr", "user");
+        setField(taskCompletedRecent, "status", TaskStatus.COMPLETED);
+        UploadTask taskFailedOld = UploadTask.createUploadTask(taskIdFailedOld, modelId, versionId, sourcePath, "/t-fo", "user");
+        setField(taskFailedOld, "status", TaskStatus.FAILED);
+        UploadTask taskPendingOld = UploadTask.createUploadTask(taskIdPendingOld, modelId, versionId, sourcePath, "/t-po", "user");
+        setField(taskPendingOld, "status", TaskStatus.PENDING);
+
+        repository.save(taskCompletedOld);
+        repository.save(taskCompletedRecent);
+        repository.save(taskFailedOld);
+        repository.save(taskPendingOld);
+
+        LocalDateTime now = LocalDateTime.now();
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(30), taskIdCompletedOld);
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(2), taskIdCompletedRecent);
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(48), taskIdFailedOld);
+        jdbcTemplate.update("UPDATE upload_task SET create_time = ? WHERE id = ?", now.minusHours(10), taskIdPendingOld);
+
+        // Query for Completed and Failed tasks older than 24 hours
+        long thresholdMs = 24 * 3600 * 1000L;
+        List<UploadTask> result = repository.findByStatusInOlderThan(
+                Arrays.asList(TaskStatus.COMPLETED, TaskStatus.FAILED), thresholdMs);
+
+        // Should return CompletedOld (30h) and FailedOld (48h), not CompletedRecent (2h) or PendingOld (10h)
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(t -> t.getTaskId().equals(taskIdCompletedOld)));
+        assertTrue(result.stream().anyMatch(t -> t.getTaskId().equals(taskIdFailedOld)));
     }
 
     private void setField(Object target, String fieldName, Object value) {

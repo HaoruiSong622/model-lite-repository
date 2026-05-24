@@ -118,12 +118,30 @@
     <update id="updateProgress">
         UPDATE upload_task
         SET progress = #{progress},
-            update_time = #{updateTime}
-        WHERE id = #{taskId}
+            update_time = #{updateTime},
+            version = version + 1
+        WHERE id = #{taskId} AND version = #{version}
     </update>
 
     <delete id="deleteById">
         DELETE FROM upload_task WHERE id = #{taskId}
     </delete>
+
+    <select id="selectTerminalTasksOlderThan" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE status IN ('Completed', 'Failed', 'Cancelled')
+          AND create_time &lt; #{cutoffTime}
+    </select>
+
+    <select id="selectByStatusInOlderThan" resultMap="uploadTaskResultMap">
+        SELECT <include refid="uploadTaskColumns"/>
+        FROM upload_task
+        WHERE status IN
+        <foreach collection="statuses" item="status" open="(" separator="," close=")">
+            #{status}
+        </foreach>
+        AND create_time &lt; #{cutoffTime}
+    </select>
 
 </mapper>

@@ -86,6 +86,21 @@ public interface UploadTaskRepository {
     void updateProgress(UploadTask task);
 
     /**
+     * Find terminal tasks (Completed/Failed/Cancelled) older than the specified age.
+     * @param maxAgeMs maximum age in milliseconds
+     * @return list of terminal tasks older than maxAgeMs
+     */
+    List<UploadTask> findTerminalTasksOlderThan(long maxAgeMs);
+
+    /**
+     * Find tasks with given statuses that are older than the specified age.
+     * @param statuses list of task statuses to filter
+     * @param maxAgeMs maximum age in milliseconds
+     * @return list of tasks matching criteria
+     */
+    List<UploadTask> findByStatusInOlderThan(List<TaskStatus> statuses, long maxAgeMs);
+
+    /**
      * Delete an upload task by its ID (hard delete).
      *
      * @param taskId the task ID

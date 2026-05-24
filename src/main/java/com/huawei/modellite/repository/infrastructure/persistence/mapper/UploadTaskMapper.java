@@ -6,6 +6,7 @@ import com.huawei.modellite.repository.weighttask.domain.aggregate.uploadtask.Up
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,4 +32,8 @@ public interface UploadTaskMapper {
     int updateProgress(UploadTask task);
 
     int deleteById(UUID taskId);
+
+    List<UploadTask> selectTerminalTasksOlderThan(@Param("cutoffTime") LocalDateTime cutoffTime);
+
+    List<UploadTask> selectByStatusInOlderThan(@Param("statuses") List<TaskStatus> statuses, @Param("cutoffTime") LocalDateTime cutoffTime);
 }
