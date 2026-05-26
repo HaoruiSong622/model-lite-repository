@@ -42,7 +42,7 @@ spec:
             - name: LOGGING_LEVEL_ROOT
               value: {{ .Values.app.logLevel | quote }}
             - name: SPRING_DATASOURCE_URL
-              value: "jdbc:postgresql://{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
+              value: "jdbc:postgresql://{{ if .Values.postgresql.enabled }}{{ include "model-lite-repository.fullname" . }}-postgresql{{ else }}{{ .Values.database.host }}{{ end }}:{{ .Values.database.port }}/{{ .Values.database.name }}"
             - name: SPRING_DATASOURCE_USERNAME
               {{- if .Values.database.existingSecret }}
               valueFrom:

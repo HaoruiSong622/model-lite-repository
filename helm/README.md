@@ -30,7 +30,8 @@ helm/
 │   ├── configmap.yaml      # Spring Boot K8s config
 │   ├── secret.yaml         # Database credentials
 │   ├── serviceaccount.yaml # ServiceAccount
-│   └── ingress.yaml        # Ingress (optional)
+│   ├── postgresql-deployment.yaml  # Bundled PostgreSQL
+│   └── postgresql-service.yaml     # PostgreSQL Service
 └── README.md               # This file
 ```
 
@@ -119,11 +120,16 @@ Access the application at `http://localhost:8080`.
 | `service.type` | `ClusterIP` | Service type (ClusterIP / NodePort / LoadBalancer) |
 | `service.port` | `8080` | Service port |
 | `app.profiles` | `dev` | Active Spring profiles |
-| `database.host` | `postgres-postgresql` | PostgreSQL host |
+| `database.host` | _(auto)_ | PostgreSQL host (auto-set when postgresql.enabled=true) |
 | `database.name` | `modellite` | Database name |
 | `database.username` | `modellite` | Database username |
 | `database.password` | `changeme` | Database password |
 | `database.existingSecret` | `""` | Use existing Secret for DB credentials |
+| `postgresql.enabled` | `true` | Deploy bundled PostgreSQL StatefulSet |
+| `postgresql.image.repository` | `postgres` | PostgreSQL image (supports arm64) |
+| `postgresql.image.tag` | `15` | PostgreSQL version |
+| `postgresql.persistence.hostPath` | `/tmp/postgresql-data` | Node hostPath for data (debug only) |
+| `postgresql.resources` | _(see values)_ | CPU/memory limits for PostgreSQL |
 
 ### Custom Values File
 
@@ -172,6 +178,33 @@ helm install model-lite-repository ./helm \
 ```
 
 The referenced Secret must contain keys `username` and `password`.
+
+### Using External PostgreSQL
+
+If you already have a PostgreSQL instance running in the cluster:
+
+```bash
+helm install model-lite-repository ./helm \
+  --namespace modellite-dev \
+  --set postgresql.enabled=false \
+  --set database.host=my-postgres.default.svc.cluster.local
+```
+
+### Bundled PostgreSQL
+
+By default, a PostgreSQL 15 Deployment is deployed alongside the application with hostPath storage:
+
+```bash
+# Default deployment (includes PostgreSQL)
+helm install model-lite-repository ./helm --namespace modellite-dev
+
+# Customize data path
+helm install model-lite-repository ./helm \
+  --namespace modellite-dev \
+  --set postgresql.persistence.hostPath=/data/postgres
+```
+
+The application automatically connects to the bundled PostgreSQL via the internal service name. No need to set `database.host` manually.
 
 ## Upgrade & Rollback
 

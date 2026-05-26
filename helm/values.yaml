@@ -98,8 +98,8 @@ app:
 
 # -- PostgreSQL database configuration
 database:
-  # -- Database host (set to an existing PostgreSQL service name or external IP)
-  host: "postgres-postgresql"
+  # -- Database host (auto-set to bundled PostgreSQL service name when postgresql.enabled=true)
+  host: ""
   # -- Database port
   port: 5432
   # -- Database name
@@ -110,6 +110,49 @@ database:
   password: "changeme"
   # -- Use an existing Kubernetes Secret for credentials (keys: username, password)
   existingSecret: ""
+
+# -- Bundled PostgreSQL database (set enabled=false to use external database)
+postgresql:
+  # -- Enable bundled PostgreSQL Deployment
+  enabled: true
+  image:
+    # -- PostgreSQL image repository (official image supports arm64)
+    repository: postgres
+    # -- PostgreSQL image tag
+    tag: "15"
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+  # -- Additional environment variables for PostgreSQL
+  extraEnv: []
+  persistence:
+    # -- SubPath within the volume for data
+    subPath: postgres
+    # -- hostPath on the node for data storage (debug/dev only)
+    hostPath: "/tmp/postgresql-data"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+  livenessProbe:
+    enabled: true
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readinessProbe:
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  podSecurityContext: {}
+  securityContext: {}
+  nodeSelector: {}
+  affinity: {}
+  tolerations: []
 
 # -- Node selector for pod scheduling
 nodeSelector: {}
