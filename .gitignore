@@ -6,3 +6,7 @@ openspec/
 skills-lock.json
 .idea/
 target/
+.classpath
+.factorypath
+.project
+.settings/

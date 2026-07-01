@@ -26,6 +26,68 @@ spec:
       serviceAccountName: {{ include "model-lite-repository.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.initContainers.dbMigrate.enabled }}
+      initContainers:
+        - name: db-migrate
+          image: "{{ .Values.initContainers.dbMigrate.image.repository }}:{{ .Values.initContainers.dbMigrate.image.tag }}"
+          imagePullPolicy: {{ .Values.initContainers.dbMigrate.image.pullPolicy }}
+          env:
+            - name: PGHOST
+              value: {{ include "model-lite-repository.fullname" . }}-postgresql
+            - name: PGPORT
+              value: {{ .Values.database.port | quote }}
+            - name: PGDATABASE
+              value: {{ .Values.database.name | quote }}
+            - name: PGUSER
+              {{- if .Values.database.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: username
+              {{- else }}
+              value: {{ .Values.database.username | quote }}
+              {{- end }}
+            - name: PGPASSWORD
+              {{- if .Values.database.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: password
+              {{- else }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "model-lite-repository.fullname" . }}-db
+                  key: password
+              {{- end }}
+          command: ['/bin/sh', '-c']
+          args:
+            - |
+              set -e
+              echo "Waiting for PostgreSQL at $PGHOST:$PGPORT..."
+              until pg_isready -q; do
+                echo "  PostgreSQL not ready, retrying in 2s..."
+                sleep 2
+              done
+              echo "PostgreSQL is ready."
+              echo "Resetting schema (drop existing tables)..."
+              psql -v ON_ERROR_STOP=1 <<'EOSQL'
+              DROP TABLE IF EXISTS model_tag, model_type_tag, version_lock, convert_task, upload_task, model_version, model, tag, model_type, category CASCADE;
+              EOSQL
+              echo "Applying schema files in order..."
+              for f in \
+                /sql/V1__create_core_tables.sql \
+                /sql/V2__add_model_version_storage_columns.sql \
+                /sql/V3__add_upload_task_version_column.sql \
+                /sql/V1__builtin_data.sql; do
+                echo "=== Running $f ==="
+                psql -v ON_ERROR_STOP=1 -f "$f"
+              done
+              echo "Schema initialization complete."
+          volumeMounts:
+            - name: sql-scripts
+              mountPath: /sql
+              readOnly: true
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -64,6 +126,12 @@ spec:
                   name: {{ include "model-lite-repository.fullname" . }}-db
                   key: password
               {{- end }}
+            - name: WEIGHT_IMPORT_NAMESPACE
+              value: {{ .Release.Namespace | quote }}
+            {{- if .Values.weightStorage.enabled }}
+            - name: WEIGHT_STORAGE_PATH
+              value: {{ .Values.weightStorage.mountPath | quote }}
+            {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}
           readinessProbe:
@@ -72,6 +140,22 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          {{- if .Values.weightStorage.enabled }}
+          volumeMounts:
+            - name: weight-storage
+              mountPath: {{ .Values.weightStorage.mountPath | quote }}
+          {{- end }}
+      volumes:
+        {{- if .Values.initContainers.dbMigrate.enabled }}
+        - name: sql-scripts
+          configMap:
+            name: {{ include "model-lite-repository.fullname" . }}-sql
+        {{- end }}
+        {{- if .Values.weightStorage.enabled }}
+        - name: weight-storage
+          persistentVolumeClaim:
+            claimName: {{ .Values.weightStorage.pvcName | quote }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

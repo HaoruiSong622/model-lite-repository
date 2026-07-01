@@ -1,0 +1,33 @@
+{{- if .Values.weightStorage.enabled }}
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.weightStorage.pvcName | quote }}
+  labels:
+    {{- include "model-lite-repository.labels" . | nindent 4 }}
+spec:
+  capacity:
+    storage: {{ .Values.weightStorage.size | quote }}
+  accessModes:
+    - {{ .Values.weightStorage.accessMode | quote }}
+  persistentVolumeReclaimPolicy: {{ .Values.weightStorage.reclaimPolicy }}
+  storageClassName: {{ .Values.weightStorage.storageClassName | quote }}
+  hostPath:
+    path: {{ .Values.weightStorage.hostPath | quote }}
+    type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.weightStorage.pvcName | quote }}
+  labels:
+    {{- include "model-lite-repository.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.weightStorage.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.weightStorage.size | quote }}
+  volumeName: {{ .Values.weightStorage.pvcName | quote }}
+  storageClassName: {{ .Values.weightStorage.storageClassName | quote }}
+{{- end }}

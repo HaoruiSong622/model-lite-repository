@@ -8,7 +8,7 @@ image:
   # -- Container image repository (build locally or set to your registry)
   repository: model-lite-repository
   # -- Pull policy: Always for SNAPSHOT, IfNotPresent for tagged releases
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   # -- Overrides the image tag whose default is the chart appVersion
   tag: ""
 
@@ -25,6 +25,38 @@ serviceAccount:
   annotations: {}
   # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
   name: ""
+
+# -- Create Role and RoleBinding granting the ServiceAccount permissions to manage
+# upload Jobs, ConfigMaps, Secrets, Pods and pod logs in this namespace.
+# Required for Fabric8K8sJobService (weight upload feature) to operate.
+rbac:
+  create: true
+
+# -- Schema migration init container (runs before app starts).
+# Waits for PostgreSQL to be ready, then drops+recreates the schema by applying
+# the SQL files bundled in the sql-configmap. Idempotent on every pod restart.
+initContainers:
+  dbMigrate:
+    enabled: true
+    image:
+      repository: postgres
+      tag: "15"
+      pullPolicy: IfNotPresent
+
+# -- Shared weight storage PVC. The application hardcodes the PVC name as
+# "model-weights" (see UploadApplicationService / TaskReconciler), so the PVC
+# name MUST stay "model-weights" unless the application code is also changed.
+# Uses hostPath for dev/test environments; switch to a networked storage class
+# (NFS, CephFS, etc.) for multi-node production clusters.
+weightStorage:
+  enabled: true
+  pvcName: "model-weights"
+  mountPath: /data/weights
+  size: 10Gi
+  accessMode: ReadWriteOnce
+  storageClassName: ""
+  reclaimPolicy: Retain
+  hostPath: /tmp/modellite-weights
 
 # -- Annotations to add to the deployment
 podAnnotations: {}
