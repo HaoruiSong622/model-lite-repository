@@ -11,3 +11,4 @@ target/
 .project
 .settings/
 e2e/allure-results
+*.iml
