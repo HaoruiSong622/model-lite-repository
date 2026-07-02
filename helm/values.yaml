@@ -183,15 +183,7 @@ postgresql:
   podSecurityContext: {}
   securityContext: {}
   nodeSelector: {}
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: node-role.kubernetes.io/control-plane
-                operator: DoesNotExist
-              - key: node-role.kubernetes.io/master
-                operator: DoesNotExist
+  affinity: {}
   tolerations: []
 
 # -- Node selector for pod scheduling
@@ -201,12 +193,4 @@ nodeSelector: {}
 tolerations: []
 
 # -- Affinity rules for pod scheduling
-affinity:
-  nodeAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      nodeSelectorTerms:
-        - matchExpressions:
-            - key: node-role.kubernetes.io/control-plane
-              operator: DoesNotExist
-            - key: node-role.kubernetes.io/master
-              operator: DoesNotExist
+affinity: {}

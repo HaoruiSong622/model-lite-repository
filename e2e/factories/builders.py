@@ -15,7 +15,8 @@ class CategoryBuilder:
 
 class ModelBuilder:
     def __init__(self):
-        self._data = {"name": f"e2e-model-{uuid.uuid4()}", "description": "e2e test model"}
+        self._data = {"name": f"e2e-model-{uuid.uuid4()}", "description": "e2e test model",
+                      "resourceGroup": "e2e-rg", "author": "e2e"}
 
     def with_name(self, name):
         self._data["name"] = name

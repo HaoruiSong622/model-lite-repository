@@ -10,3 +10,4 @@ target/
 .factorypath
 .project
 .settings/
+e2e/allure-results

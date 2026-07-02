@@ -11,13 +11,21 @@ class ModelLiteClient:
         self.create_user = create_user
         self.s = requests.Session()
         self.s.headers.update({"Content-Type": "application/json"})
+        self.history = []
 
     def _req(self, method, path, *, params=None, json=None, **kwargs):
         url = f"{self.base_url}{path}"
         resp = self.s.request(method, url, params=params, json=json, timeout=30, **kwargs)
+        self.history.append({
+            "method": method, "url": url, "params": params, "request_body": json,
+            "status_code": resp.status_code, "response_body": resp.text,
+        })
         if resp.status_code >= 500:
             logger.error("5xx %s %s: %s", method, url, resp.text[:500])
         return resp
+
+    def clear_history(self):
+        self.history.clear()
 
     def health(self):
         return self._req("GET", "/actuator/health")

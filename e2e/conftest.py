@@ -1,7 +1,8 @@
+import json
 import os
 import subprocess
-import pathlib
 
+import allure
 import pytest
 
 from helpers.client import ModelLiteClient
@@ -40,22 +41,33 @@ def pg():
     )
 
 
-@pytest.fixture(scope="session", autouse=True)
-def cleanup_session(pg):
+@pytest.fixture(autouse=True)
+def _clear_history(client):
+    client.clear_history()
     yield
-    try:
-        pg.cleanup_by_name_prefix("e2e-")
-    except Exception as e:
-        print(f"[e2e] cleanup warning: {e}")
 
 
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     outcome = yield
-    report = outcome.get_result()
-    if report.when == "call" and report.failed:
-        artifact_dir = pathlib.Path("artifacts") / item.name
-        artifact_dir.mkdir(parents=True, exist_ok=True)
+    rep = outcome.get_result()
+    setattr(item, f"rep_{rep.when}", rep)
+    if rep.when != "call":
+        return
+    client = item.funcargs.get("client") if hasattr(item, "funcargs") else None
+    if client and getattr(client, "history", None):
+        lines = []
+        for i, h in enumerate(client.history, 1):
+            lines.append(f"[{i}] {h['method']} {h['url']}")
+            if h.get("params"):
+                lines.append(f"    Params: {h['params']}")
+            if h["request_body"] is not None:
+                lines.append(f"    Request body: {json.dumps(h['request_body'], ensure_ascii=False)}")
+            lines.append(f"    Response [{h['status_code']}]: {h['response_body']}")
+            lines.append("")
+        allure.attach("\n".join(lines), name="API 请求历史",
+                      attachment_type=allure.attachment_type.TEXT)
+    if rep.failed:
         ns = os.environ.get("E2E_NAMESPACE", "modellite-dev")
         try:
             out = subprocess.run(
@@ -63,6 +75,16 @@ def pytest_runtest_makereport(item, call):
                  "-l", "app.kubernetes.io/name=model-lite-repository", "--tail=100"],
                 capture_output=True, text=True, timeout=30,
             )
-            (artifact_dir / "app-logs.txt").write_text(out.stdout)
+            allure.attach(out.stdout, name="应用 pod 日志(失败时)",
+                          attachment_type=allure.attachment_type.TEXT)
         except Exception:
             pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_session(pg):
+    yield
+    try:
+        pg.cleanup_by_name_prefix("e2e-")
+    except Exception as e:
+        print(f"[e2e] cleanup warning: {e}")
