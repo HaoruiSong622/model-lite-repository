@@ -1,0 +1,5 @@
+pytest>=7.4
+requests>=2.31
+psycopg2-binary>=2.9
+allure-pytest>=2.13
+jsonschema>=4.20

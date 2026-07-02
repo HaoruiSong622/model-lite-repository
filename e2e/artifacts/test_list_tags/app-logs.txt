@@ -1,0 +1,200 @@
+2026-07-01 11:16:11.381 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:16:11.381 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:16:11.381 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:16:11.381369576(LocalDateTime)
+2026-07-01 11:16:11.382 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:16:11.382 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:16:41.382 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Starting task reconciliation...
+2026-07-01 11:16:41.383 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:16:41.383 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Pending(String)
+2026-07-01 11:16:41.384 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:16:41.384 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:16:41.384 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Running(String)
+2026-07-01 11:16:41.385 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:16:41.385 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:16:41.385 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Paused(String)
+2026-07-01 11:16:41.386 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:16:41.386 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:16:41.386 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:16:41.386153917(LocalDateTime)
+2026-07-01 11:16:41.386 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:16:41.386 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:17:11.387 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Starting task reconciliation...
+2026-07-01 11:17:11.388 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:17:11.388 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Pending(String)
+2026-07-01 11:17:11.389 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:17:11.390 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:17:11.390 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Running(String)
+2026-07-01 11:17:11.390 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:17:11.391 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:17:11.391 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Paused(String)
+2026-07-01 11:17:11.391 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:17:11.392 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:17:11.392 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:17:11.391912296(LocalDateTime)
+2026-07-01 11:17:11.392 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:17:11.392 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:17:41.393 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Starting task reconciliation...
+2026-07-01 11:17:41.394 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:17:41.394 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Pending(String)
+2026-07-01 11:17:41.395 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:17:41.395 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:17:41.396 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Running(String)
+2026-07-01 11:17:41.396 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:17:41.397 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:17:41.397 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Paused(String)
+2026-07-01 11:17:41.397 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:17:41.398 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:17:41.398 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:17:41.398246859(LocalDateTime)
+2026-07-01 11:17:41.399 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:17:41.399 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:18:11.400 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Starting task reconciliation...
+2026-07-01 11:18:11.401 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:18:11.401 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Pending(String)
+2026-07-01 11:18:11.401 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:18:11.402 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:18:11.402 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Running(String)
+2026-07-01 11:18:11.402 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:18:11.403 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:18:11.403 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Paused(String)
+2026-07-01 11:18:11.403 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:18:11.403 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:18:11.403 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:18:11.403696841(LocalDateTime)
+2026-07-01 11:18:11.404 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:18:11.404 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:18:41.412 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Starting task reconciliation...
+2026-07-01 11:18:41.412 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:18:41.413 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Pending(String)
+2026-07-01 11:18:41.413 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:18:41.414 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:18:41.414 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Running(String)
+2026-07-01 11:18:41.414 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:18:41.415 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:18:41.415 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Paused(String)
+2026-07-01 11:18:41.415 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:18:41.416 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:18:41.416 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:18:41.415969404(LocalDateTime)
+2026-07-01 11:18:41.416 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:18:41.417 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:19:11.417 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Starting task reconciliation...
+2026-07-01 11:19:11.418 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:19:11.418 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Pending(String)
+2026-07-01 11:19:11.419 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:19:11.419 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:19:11.419 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Running(String)
+2026-07-01 11:19:11.419 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:19:11.420 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status = ?
+2026-07-01 11:19:11.420 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - ==> Parameters: Paused(String)
+2026-07-01 11:19:11.420 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectByStatus - <==      Total: 0
+2026-07-01 11:19:11.420 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==>  Preparing: SELECT id, model_id, version_id, source_type, source_path, cifs_username, cifs_password, target_path, progress, status, error_message, version, create_user, create_time, update_time FROM upload_task WHERE status IN ('Completed', 'Failed', 'Cancelled') AND create_time < ?
+2026-07-01 11:19:11.420 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - ==> Parameters: 2026-06-30T11:19:11.420656969(LocalDateTime)
+2026-07-01 11:19:11.421 [scheduling-1] DEBUG c.h.m.r.i.p.m.U.selectTerminalTasksOlderThan - <==      Total: 0
+2026-07-01 11:19:11.421 [scheduling-1] DEBUG c.h.m.r.i.k8s.TaskReconciler - Task reconciliation complete
+2026-07-01 11:19:23.975 [http-nio-8080-exec-9] DEBUG c.h.m.r.i.p.m.C.selectAllWithTypes - ==>  Preparing: SELECT c.id AS c_id, c.name AS c_name, c.description AS c_description, c.is_builtin AS c_is_builtin, mt.id AS mt_id, mt.name AS mt_name, mt.description AS mt_description, mt.is_builtin AS mt_is_builtin FROM category c LEFT JOIN model_type mt ON c.id = mt.category_id
+2026-07-01 11:19:23.976 [http-nio-8080-exec-9] DEBUG c.h.m.r.i.p.m.C.selectAllWithTypes - ==> Parameters: 
+2026-07-01 11:19:23.985 [http-nio-8080-exec-9] DEBUG c.h.m.r.i.p.m.C.selectAllWithTypes - <==      Total: 5
+2026-07-01 11:19:24.088 [http-nio-8080-exec-10] DEBUG c.h.m.r.i.p.m.M.selectByResourceGroups - ==>  Preparing: SELECT id, name, description, category_id, type_id, resource_group, create_user, author, series_name, model_size, max_seq_length, create_time, update_time FROM model WHERE resource_group IN (?) ORDER BY create_time DESC LIMIT ? OFFSET ?
+2026-07-01 11:19:24.090 [http-nio-8080-exec-10] DEBUG c.h.m.r.i.p.m.M.selectByResourceGroups - ==> Parameters: public(String), 10(Integer), 0(Integer)
+2026-07-01 11:19:24.093 [http-nio-8080-exec-10] DEBUG c.h.m.r.i.p.m.M.selectByResourceGroups - <==      Total: 0
+2026-07-01 11:19:24.094 [http-nio-8080-exec-10] DEBUG c.h.m.r.i.p.m.M.countByResourceGroups - ==>  Preparing: SELECT COUNT(*) FROM model WHERE resource_group IN (?)
+2026-07-01 11:19:24.094 [http-nio-8080-exec-10] DEBUG c.h.m.r.i.p.m.M.countByResourceGroups - ==> Parameters: public(String)
+2026-07-01 11:19:24.098 [http-nio-8080-exec-10] DEBUG c.h.m.r.i.p.m.M.countByResourceGroups - <==      Total: 1
+2026-07-01 11:19:24.117 [http-nio-8080-exec-1] DEBUG c.h.m.r.i.p.m.TagMapper.selectAll - ==>  Preparing: SELECT id, name, tag_type, is_builtin, create_time, update_time FROM tag ORDER BY create_time DESC
+2026-07-01 11:19:24.117 [http-nio-8080-exec-1] DEBUG c.h.m.r.i.p.m.TagMapper.selectAll - ==> Parameters: 
+2026-07-01 11:11:17.713 UTC [456] FATAL:  role "root" does not exist
+2026-07-01 11:11:17.735 UTC [457] FATAL:  role "root" does not exist
+2026-07-01 11:11:18.555 UTC [30] LOG:  checkpoint starting: time
+2026-07-01 11:11:27.707 UTC [472] FATAL:  role "root" does not exist
+2026-07-01 11:11:27.731 UTC [473] FATAL:  role "root" does not exist
+2026-07-01 11:11:34.002 UTC [30] LOG:  checkpoint complete: wrote 157 buffers (1.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=15.446 s, sync=0.001 s, total=15.448 s; sync files=103, longest=0.001 s, average=0.001 s; distance=1024 kB, estimate=1024 kB
+2026-07-01 11:11:37.721 UTC [486] FATAL:  role "root" does not exist
+2026-07-01 11:11:37.744 UTC [487] FATAL:  role "root" does not exist
+2026-07-01 11:11:47.709 UTC [501] FATAL:  role "root" does not exist
+2026-07-01 11:11:47.738 UTC [502] FATAL:  role "root" does not exist
+2026-07-01 11:11:57.720 UTC [515] FATAL:  role "root" does not exist
+2026-07-01 11:11:57.744 UTC [516] FATAL:  role "root" does not exist
+2026-07-01 11:12:07.717 UTC [530] FATAL:  role "root" does not exist
+2026-07-01 11:12:07.747 UTC [531] FATAL:  role "root" does not exist
+2026-07-01 11:12:17.713 UTC [544] FATAL:  role "root" does not exist
+2026-07-01 11:12:17.763 UTC [545] FATAL:  role "root" does not exist
+2026-07-01 11:12:27.744 UTC [559] FATAL:  role "root" does not exist
+2026-07-01 11:12:27.773 UTC [560] FATAL:  role "root" does not exist
+2026-07-01 11:12:37.711 UTC [573] FATAL:  role "root" does not exist
+2026-07-01 11:12:37.736 UTC [574] FATAL:  role "root" does not exist
+2026-07-01 11:12:47.702 UTC [588] FATAL:  role "root" does not exist
+2026-07-01 11:12:47.727 UTC [589] FATAL:  role "root" does not exist
+2026-07-01 11:12:57.707 UTC [602] FATAL:  role "root" does not exist
+2026-07-01 11:12:57.734 UTC [603] FATAL:  role "root" does not exist
+2026-07-01 11:13:07.705 UTC [617] FATAL:  role "root" does not exist
+2026-07-01 11:13:07.761 UTC [618] FATAL:  role "root" does not exist
+2026-07-01 11:13:17.715 UTC [631] FATAL:  role "root" does not exist
+2026-07-01 11:13:17.736 UTC [632] FATAL:  role "root" does not exist
+2026-07-01 11:13:27.700 UTC [646] FATAL:  role "root" does not exist
+2026-07-01 11:13:27.729 UTC [647] FATAL:  role "root" does not exist
+2026-07-01 11:13:37.709 UTC [660] FATAL:  role "root" does not exist
+2026-07-01 11:13:37.733 UTC [661] FATAL:  role "root" does not exist
+2026-07-01 11:13:47.708 UTC [675] FATAL:  role "root" does not exist
+2026-07-01 11:13:47.734 UTC [676] FATAL:  role "root" does not exist
+2026-07-01 11:13:57.712 UTC [690] FATAL:  role "root" does not exist
+2026-07-01 11:13:57.739 UTC [691] FATAL:  role "root" does not exist
+2026-07-01 11:14:07.722 UTC [705] FATAL:  role "root" does not exist
+2026-07-01 11:14:07.752 UTC [706] FATAL:  role "root" does not exist
+2026-07-01 11:14:17.716 UTC [719] FATAL:  role "root" does not exist
+2026-07-01 11:14:17.743 UTC [720] FATAL:  role "root" does not exist
+2026-07-01 11:14:27.738 UTC [733] FATAL:  role "root" does not exist
+2026-07-01 11:14:27.759 UTC [734] FATAL:  role "root" does not exist
+2026-07-01 11:14:37.728 UTC [747] FATAL:  role "root" does not exist
+2026-07-01 11:14:37.752 UTC [748] FATAL:  role "root" does not exist
+2026-07-01 11:14:47.701 UTC [762] FATAL:  role "root" does not exist
+2026-07-01 11:14:47.728 UTC [763] FATAL:  role "root" does not exist
+2026-07-01 11:14:57.720 UTC [776] FATAL:  role "root" does not exist
+2026-07-01 11:14:57.749 UTC [777] FATAL:  role "root" does not exist
+2026-07-01 11:15:07.722 UTC [792] FATAL:  role "root" does not exist
+2026-07-01 11:15:07.749 UTC [793] FATAL:  role "root" does not exist
+2026-07-01 11:15:17.715 UTC [806] FATAL:  role "root" does not exist
+2026-07-01 11:15:17.738 UTC [807] FATAL:  role "root" does not exist
+2026-07-01 11:15:27.738 UTC [821] FATAL:  role "root" does not exist
+2026-07-01 11:15:27.762 UTC [822] FATAL:  role "root" does not exist
+2026-07-01 11:15:37.723 UTC [835] FATAL:  role "root" does not exist
+2026-07-01 11:15:37.749 UTC [836] FATAL:  role "root" does not exist
+2026-07-01 11:15:47.731 UTC [850] FATAL:  role "root" does not exist
+2026-07-01 11:15:47.808 UTC [851] FATAL:  role "root" does not exist
+2026-07-01 11:15:57.717 UTC [864] FATAL:  role "root" does not exist
+2026-07-01 11:15:57.743 UTC [865] FATAL:  role "root" does not exist
+2026-07-01 11:16:07.723 UTC [879] FATAL:  role "root" does not exist
+2026-07-01 11:16:07.747 UTC [880] FATAL:  role "root" does not exist
+2026-07-01 11:16:17.720 UTC [893] FATAL:  role "root" does not exist
+2026-07-01 11:16:17.751 UTC [894] FATAL:  role "root" does not exist
+2026-07-01 11:16:27.725 UTC [908] FATAL:  role "root" does not exist
+2026-07-01 11:16:27.777 UTC [909] FATAL:  role "root" does not exist
+2026-07-01 11:16:37.716 UTC [923] FATAL:  role "root" does not exist
+2026-07-01 11:16:37.742 UTC [924] FATAL:  role "root" does not exist
+2026-07-01 11:16:47.736 UTC [938] FATAL:  role "root" does not exist
+2026-07-01 11:16:47.760 UTC [939] FATAL:  role "root" does not exist
+2026-07-01 11:16:57.721 UTC [952] FATAL:  role "root" does not exist
+2026-07-01 11:16:57.749 UTC [953] FATAL:  role "root" does not exist
+2026-07-01 11:17:07.724 UTC [967] FATAL:  role "root" does not exist
+2026-07-01 11:17:07.758 UTC [968] FATAL:  role "root" does not exist
+2026-07-01 11:17:17.732 UTC [982] FATAL:  role "root" does not exist
+2026-07-01 11:17:17.760 UTC [983] FATAL:  role "root" does not exist
+2026-07-01 11:17:27.725 UTC [997] FATAL:  role "root" does not exist
+2026-07-01 11:17:27.757 UTC [998] FATAL:  role "root" does not exist
+2026-07-01 11:17:37.696 UTC [1011] FATAL:  role "root" does not exist
+2026-07-01 11:17:37.722 UTC [1012] FATAL:  role "root" does not exist
+2026-07-01 11:17:47.713 UTC [1026] FATAL:  role "root" does not exist
+2026-07-01 11:17:47.739 UTC [1027] FATAL:  role "root" does not exist
+2026-07-01 11:17:57.719 UTC [1040] FATAL:  role "root" does not exist
+2026-07-01 11:17:57.744 UTC [1041] FATAL:  role "root" does not exist
+2026-07-01 11:18:07.723 UTC [1055] FATAL:  role "root" does not exist
+2026-07-01 11:18:07.752 UTC [1056] FATAL:  role "root" does not exist
+2026-07-01 11:18:17.714 UTC [1069] FATAL:  role "root" does not exist
+2026-07-01 11:18:17.736 UTC [1070] FATAL:  role "root" does not exist
+2026-07-01 11:18:27.706 UTC [1084] FATAL:  role "root" does not exist
+2026-07-01 11:18:27.767 UTC [1085] FATAL:  role "root" does not exist
+2026-07-01 11:18:37.727 UTC [1098] FATAL:  role "root" does not exist
+2026-07-01 11:18:37.752 UTC [1099] FATAL:  role "root" does not exist
+2026-07-01 11:18:47.695 UTC [1113] FATAL:  role "root" does not exist
+2026-07-01 11:18:47.719 UTC [1114] FATAL:  role "root" does not exist
+2026-07-01 11:18:57.706 UTC [1127] FATAL:  role "root" does not exist
+2026-07-01 11:18:57.731 UTC [1128] FATAL:  role "root" does not exist
+2026-07-01 11:19:07.722 UTC [1142] FATAL:  role "root" does not exist
+2026-07-01 11:19:07.778 UTC [1143] FATAL:  role "root" does not exist
+2026-07-01 11:19:17.716 UTC [1156] FATAL:  role "root" does not exist
+2026-07-01 11:19:17.775 UTC [1157] FATAL:  role "root" does not exist
