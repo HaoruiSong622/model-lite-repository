@@ -10,7 +10,6 @@ echo "ext4 loop mounted on /exports"
 mkdir -p /exports/models
 head -c 1048576 /dev/urandom > /exports/models/fake-1.safetensors
 head -c 1048576 /dev/urandom > /exports/models/fake-2.bin
-head -c 1024 /dev/urandom > /exports/models/readme.txt
 echo "seed files:"; ls -la /exports/models
 
 echo "/exports *(rw,sync,no_subtree_check,insecure,no_root_squash,fsid=0)" > /etc/exports

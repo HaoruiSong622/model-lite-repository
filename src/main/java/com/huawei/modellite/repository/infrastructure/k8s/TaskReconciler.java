@@ -12,6 +12,7 @@ import com.huawei.modellite.repository.weighttask.domain.service.TaskEventCallba
 
 import io.fabric8.kubernetes.client.KubernetesClient;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -29,7 +30,8 @@ public class TaskReconciler {
     private final TaskEventCallback taskEventCallback;
     private final LeaderElectionService leaderElectionService;
 
-    private static final long TERMINAL_CLEANUP_AGE_MS = 24 * 60 * 60 * 1000L;
+    @Value("${task.reconciler.terminal-cleanup-age-ms:86400000}")
+    private long terminalCleanupAgeMs;
     private static final List<String> DEFAULT_ALLOWED_SUFFIXES = Arrays.asList(
             ".bin", ".json", ".safetensors", ".model", ".pt", ".pth", ".onnx", ".gguf",
             ".txt", ".md", ".py", ".sh", ".yaml", ".yml", ".toml", ".cfg", ".ini",
@@ -73,6 +75,13 @@ public class TaskReconciler {
                 if (jobStatus == JobStatus.RUNNING) {
                     log.info("Pending task {} Job is now running, calling onJobRunning", task.getTaskId());
                     taskEventCallback.onJobRunning(task.getTaskId().toString());
+                } else if (jobStatus == JobStatus.COMPLETE) {
+                    log.info("Pending task {} Job already complete, transitioning running->completed", task.getTaskId());
+                    taskEventCallback.onJobRunning(task.getTaskId().toString());
+                    taskEventCallback.onJobCompleted(task.getTaskId().toString());
+                } else if (jobStatus == JobStatus.FAILED) {
+                    log.info("Pending task {} Job already failed, marking failed", task.getTaskId());
+                    taskEventCallback.onJobFailed(task.getTaskId().toString(), "Job failed before running");
                 } else {
                     log.debug("Pending task {} has existing Job (status={}), waiting", task.getTaskId(), jobStatus);
                 }
@@ -122,7 +131,7 @@ public class TaskReconciler {
     }
 
     void scanTerminalTasks() {
-        List<UploadTask> oldTerminalTasks = uploadTaskRepository.findTerminalTasksOlderThan(TERMINAL_CLEANUP_AGE_MS);
+        List<UploadTask> oldTerminalTasks = uploadTaskRepository.findTerminalTasksOlderThan(terminalCleanupAgeMs);
         for (UploadTask task : oldTerminalTasks) {
             try {
                 log.info("Cleaning up terminal task {} resources", task.getTaskId());

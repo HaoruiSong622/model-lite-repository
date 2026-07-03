@@ -25,6 +25,6 @@ INSERT INTO model_type (id, category_id, name, description, is_builtin, create_t
 
 -- Builtin Tags
 INSERT INTO tag (id, name, tag_type, is_builtin, create_time, update_time) VALUES
-('30000000-0000-0000-0000-000000000001', 'supportFinetune', 'Capability', TRUE, NOW(), NOW()),
-('30000000-0000-0000-0000-000000000002', 'vision', 'Capability', TRUE, NOW(), NOW()),
-('30000000-0000-0000-0000-000000000003', 'multimodal', 'Capability', TRUE, NOW(), NOW());
+('30000000-0000-0000-0000-000000000001', 'supportFinetune', 'CAPABILITY', TRUE, NOW(), NOW()),
+('30000000-0000-0000-0000-000000000002', 'vision', 'CAPABILITY', TRUE, NOW(), NOW()),
+('30000000-0000-0000-0000-000000000003', 'multimodal', 'CAPABILITY', TRUE, NOW(), NOW());

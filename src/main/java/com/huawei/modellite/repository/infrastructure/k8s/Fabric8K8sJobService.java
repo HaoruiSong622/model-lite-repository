@@ -163,6 +163,7 @@ public class Fabric8K8sJobService implements K8sJobService {
         ContainerBuilder containerBuilder = new ContainerBuilder()
                 .withName(CONTAINER_NAME)
                 .withImage(image)
+                .withImagePullPolicy("IfNotPresent")
                 .withEnvFrom(new EnvFromSourceBuilder()
                         .withConfigMapRef(new ConfigMapEnvSourceBuilder()
                                 .withName(getConfigMapName(spec.getTaskId()))

@@ -27,7 +27,7 @@ public class LeaderElectionService {
     private volatile boolean isLeader = false;
 
     public LeaderElectionService(KubernetesClient kubernetesClient,
-                                  @Value("${weight-import.namespace:default}") String namespace) {
+                                  @Value("${weight-import.job.namespace:default}") String namespace) {
         this.kubernetesClient = kubernetesClient;
         this.namespace = namespace;
         this.instanceId = UUID.randomUUID().toString();

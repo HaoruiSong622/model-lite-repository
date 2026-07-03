@@ -12,8 +12,8 @@ CREATE TABLE category (
     name                VARCHAR(100) NOT NULL UNIQUE,
     description         VARCHAR(500) DEFAULT '',
     is_builtin          BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE category IS '模型分类表（一级分类），如 TextGeneration、ImageTextToText';
 COMMENT ON COLUMN category.id IS '分类ID（UUID，应用侧生成）';
@@ -29,8 +29,8 @@ CREATE TABLE model_type (
     name                VARCHAR(100) NOT NULL,
     description         VARCHAR(500) DEFAULT '',
     is_builtin          BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_model_type_name UNIQUE (category_id, name)
 );
 COMMENT ON TABLE model_type IS '模型类型表（二级分类），如 glm-5、Qwen2.5-VL-7B';
@@ -45,8 +45,8 @@ CREATE TABLE tag (
     name                VARCHAR(50) NOT NULL UNIQUE,
     tag_type            VARCHAR(20) NOT NULL,
     is_builtin          BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE tag IS '标签表，同时服务两种关联场景：USER=用户自定义标签，CAPABILITY=能力标签';
 COMMENT ON COLUMN tag.tag_type IS '标签类型：USER=用户自定义标签，CAPABILITY=能力标签';
@@ -68,8 +68,8 @@ CREATE TABLE model (
     model_size          BIGINT DEFAULT NULL,
     max_seq_length      INTEGER DEFAULT NULL,
     deleted             BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE model IS '模型表，模型仓库的顶层实体';
 COMMENT ON COLUMN model.name IS '模型名称，同一分类+类型组合下唯一，创建后不可修改';
@@ -101,8 +101,8 @@ CREATE TABLE model_version (
     final_loss          VARCHAR(100) DEFAULT NULL,
     source_version      VARCHAR(50) DEFAULT NULL,
     deleted             BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_model_version UNIQUE (model_id, version_number)
 );
 COMMENT ON TABLE model_version IS '模型版本表，模型的具体可部署实例';
@@ -123,7 +123,7 @@ CREATE TABLE model_tag (
     id                  UUID PRIMARY KEY,
     model_id            UUID NOT NULL REFERENCES model(id),
     tag_id              UUID NOT NULL REFERENCES tag(id),
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_model_tag UNIQUE (model_id, tag_id)
 );
 COMMENT ON TABLE model_tag IS '模型-标签关联表（用户自定义标签关联）';
@@ -135,7 +135,7 @@ CREATE TABLE model_type_tag (
     id                  UUID PRIMARY KEY,
     type_id             UUID NOT NULL REFERENCES model_type(id),
     tag_id              UUID NOT NULL REFERENCES tag(id),
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT uk_model_type_tag UNIQUE (type_id, tag_id)
 );
 COMMENT ON TABLE model_type_tag IS '模型类型-标签关联表（能力标签关联，替代 supportFinetune 字段）';
@@ -148,8 +148,8 @@ CREATE TABLE version_lock (
     version_id          UUID NOT NULL REFERENCES model_version(id),
     locker_id           VARCHAR(200) NOT NULL,
     lock_type           VARCHAR(30) NOT NULL,
-    expire_time         TIMESTAMP WITH TIME ZONE NOT NULL,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    expire_time         TIMESTAMP NOT NULL,
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE version_lock IS '版本锁表，保护正在被平台任务使用的权重版本不被误删';
 COMMENT ON COLUMN version_lock.locker_id IS '锁持有者标识（任务ID）';
@@ -173,8 +173,8 @@ CREATE TABLE upload_task (
     error_message       VARCHAR(2000) DEFAULT NULL,
     create_user         VARCHAR(100) NOT NULL,
     deleted             BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE upload_task IS '上传任务表，跟踪权重文件从外部存储拷贝到平台 PVC 的异步过程';
 COMMENT ON COLUMN upload_task.source_type IS '源路径类型：NFS/CIFS/PVC';
@@ -197,8 +197,8 @@ CREATE TABLE convert_task (
     error_message       VARCHAR(2000) DEFAULT NULL,
     create_user         VARCHAR(100) NOT NULL,
     deleted             BOOLEAN NOT NULL DEFAULT FALSE,
-    create_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    update_time         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    create_time         TIMESTAMP NOT NULL DEFAULT NOW(),
+    update_time         TIMESTAMP NOT NULL DEFAULT NOW()
 );
 COMMENT ON TABLE convert_task IS '转换任务表，跟踪权重格式转换的异步过程（如 Megatron → Safetensors）';
 COMMENT ON COLUMN convert_task.target_version_id IS '目标版本ID，任务创建时先为 NULL，版本创建后回填';

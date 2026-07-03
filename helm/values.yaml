@@ -194,3 +194,9 @@ tolerations: []
 
 # -- Affinity rules for pod scheduling
 affinity: {}
+
+# -- Weight import job configuration (file-copier)
+weightImport:
+  job:
+    image: "modellite/file-copier:latest"
+    namespace: ""

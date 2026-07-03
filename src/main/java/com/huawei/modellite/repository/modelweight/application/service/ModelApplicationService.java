@@ -63,7 +63,7 @@ public class ModelApplicationService {
                 request.getCategoryId(),
                 request.getTypeId(),
                 request.getResourceGroup(),
-                null,
+                "system",
                 request.getAuthor(),
                 request.getSeriesName(),
                 request.getModelSize() != null ? request.getModelSize().toString() : null,

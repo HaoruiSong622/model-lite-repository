@@ -126,8 +126,12 @@ spec:
                   name: {{ include "model-lite-repository.fullname" . }}-db
                   key: password
               {{- end }}
-            - name: WEIGHT_IMPORT_NAMESPACE
-              value: {{ .Release.Namespace | quote }}
+            - name: WEIGHT_IMPORT_JOB_NAMESPACE
+              value: {{ .Values.weightImport.job.namespace | default .Release.Namespace | quote }}
+            - name: WEIGHT_IMPORT_JOB_IMAGE
+              value: {{ .Values.weightImport.job.image | quote }}
+            - name: TASK_RECONCILER_TERMINAL_CLEANUP_AGE_MS
+              value: "60000"
             {{- if .Values.weightStorage.enabled }}
             - name: WEIGHT_STORAGE_PATH
               value: {{ .Values.weightStorage.mountPath | quote }}
