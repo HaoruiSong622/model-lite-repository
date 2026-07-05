@@ -33,5 +33,5 @@ def test_nfs_upload_full_flow(client, k8s):
     assert any(f.endswith(".safetensors") or f.endswith(".bin") for f in files), \
         f"expected weight files in PVC, got: {files}"
 
-    assert k8s.wait_for_job_deleted(task_id, timeout=90), \
+    assert k8s.wait_for_job_deleted(task_id, timeout=60), \
         f"Job upload-{task_id} was not auto-cleaned after task Completed"

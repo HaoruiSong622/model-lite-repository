@@ -636,8 +636,8 @@ public class UploadTask {
 | 触发源 | 允许/拒绝 | 说明 |
 |--------|----------|------|
 | 所有 8 个触发源 | ❌ 0102042 | 终态任务不允许任何状态变更操作。错误消息统一为："任务已处于终态（{status}），无法执行 {action}" |
-| TaskReconciler 超时恢复（Completed） | — | 无状态转换。TaskReconciler 执行资源清理：删除 ConfigMap/Secret（CIFS 凭证） |
-| TaskReconciler 超时恢复（Failed） | — | 无状态转换。TaskReconciler 执行资源清理：删除 ConfigMap/Secret，清理目标 PVC 中已拷贝的部分文件 |
+| TaskReconciler 超时恢复（Completed） | — | 无状态转换。TaskReconciler 执行资源清理：删除 Job + ConfigMap/Secret（deleteJobResources） |
+| TaskReconciler 超时恢复（Failed） | — | 无状态转换。TaskReconciler 执行资源清理：删除 Job + ConfigMap/Secret，清理目标 PVC 中已拷贝的部分文件 |
 | TaskReconciler 超时恢复（Cancelled） | — | 无状态转换。TaskReconciler 执行资源清理：同上 |
 
 ---
@@ -1284,7 +1284,7 @@ stateDiagram-v2
 2. 调用 `uploadTaskRepository.update()` 持久化（带乐观锁）
 3. 调用模型权重上下文更新版本状态：Uploading → Available
 4. 清理 Secret（CIFS 凭证立即删除，避免残留）
-5. Job 由 `ttlSecondsAfterFinished: 86400` 在 24h 后自动清理
+5. TaskReconciler.scanTerminalTasks() 在任务完成后清除 Job + ConfigMap + Secret（deleteJobResources），不保留 Job
 
 **退出条件**:
 - 数据库更新成功 → 生命周期结束（终态：Completed）
@@ -1599,7 +1599,7 @@ public void reconcileTask(UUID taskId) {
 | Pending 任务 | 存在超过 5 分钟 | 查询 K8s Job 状态：不存在则重建，存在但异常则同步失败状态 |
 | Running 任务 | 始终扫描 | 读取 Pod 日志更新进度；若 Job 已终态则同步状态 |
 | Paused 任务 | 存在超过 1 小时 | 打印 WARN 日志（`任务 [{}] 已暂停超过 1 小时，建议检查`） |
-| 终态任务关联资源 | 任务终态超过 24h | 清理残留的 ConfigMap / Secret |
+| 终态任务关联资源 | 任务完成后（10s） | 清理 Job + ConfigMap / Secret（deleteJobResources） |
 
 3. 对账扫描 SQL：
 ```sql
@@ -3381,10 +3381,10 @@ flowchart TB
     end
 
     subgraph Cleanup["清理阶段"]
-        L1["任务终态超过 24h"]
+        L1["任务完成后 10s"]
         L2["deleteJobResources"]
         L3["ConfigMap + Secret 删除"]
-        L4["Job 由 ttlSecondsAfterFinished 自动清理"]
+        L4["Job + Pod 删除（deleteJobResources）"]
         L1 --> L2 --> L3
         L1 --> L4
     end
@@ -3581,7 +3581,7 @@ flowchart TB
 
     subgraph Scan["扫描逻辑"]
         S1["查询所有非终态任务<br/>Pending / Running / Paused"]
-        S2["查询终态超过 24h 的任务"]
+        S2["查询终态任务（update_time < cutoff）"]
         S3["查询 orphan Secret<br/>(无对应活跃任务)"]
     end
 
@@ -3612,7 +3612,8 @@ public class TaskReconciler {
     private static final long RECONCILE_INTERVAL_MS = 30_000L;  // 30 秒
     private static final long PENDING_TIMEOUT_MS = 5 * 60 * 1000L;  // 5 分钟
     private static final long PAUSED_WARN_MS = 60 * 60 * 1000L;  // 1 小时
-    private static final long TERMINAL_CLEANUP_MS = 24 * 60 * 60 * 1000L;  // 24 小时
+    @Value("${task.reconciler.terminal-cleanup-age-ms:10000}")
+    private long terminalCleanupAgeMs;  // 完成后 10s 清理
 
     @Scheduled(fixedDelay = RECONCILE_INTERVAL_MS)
     public void reconcile() {
@@ -3659,9 +3660,9 @@ private void reconcileNonTerminalTasks() {
 
 ```java
 private void reconcileTerminalTasks() {
-    // 查询终态超过 24 小时的任务
+    // 查询终态任务（update_time < cutoff，完成后 10s）
     List<UploadTask> terminalTasks = uploadTaskRepository
-            .findTerminalTasksOlderThan(TERMINAL_CLEANUP_MS);
+            .findTerminalTasksOlderThan(terminalCleanupAgeMs);
 
     for (UploadTask task : terminalTasks) {
         try {
@@ -3988,9 +3989,9 @@ public class UploadTask {
 
 | 资源类型 | 清理触发时机 | 清理执行方 | 清理方式 | 备注 |
 |----------|-------------|------------|----------|------|
-| **Job + Pod** | 任务完成 24h 后 | K8s 自动 | `ttlSecondsAfterFinished: 86400` | Job spec 中配置，无需应用干预 |
+| **Job + Pod** | 任务完成后（10s） | TaskReconciler | `deleteJobResources` | 不保留 Job，完成后 10s 清除 |
 | **Job + Pod** | 用户暂停/取消时 | K8sJobService.deleteJob | API 调用级联删除 | 立即执行 |
-| **ConfigMap** | 任务终态超过 24h | TaskReconciler | `deleteJobResources` | 避免过早清理导致日志读取失败 |
+| **ConfigMap** | 任务完成后（10s） | TaskReconciler | `deleteJobResources` | 与 Job 一同清除 |
 | **Secret（CIFS 凭证）** | 任务终态时 | TaskReconciler / Informer 回调 | `deleteJobResources` | **立即清理**，凭证安全优先 |
 | **目标 PVC 中部分文件** | 任务取消时 | UploadApplicationService | 调用 PVC 清理接口 | 删除已拷贝的部分文件 |
 | **目标 PVC 中部分文件** | 任务失败时 | 不自动清理 | — | 保留现场便于排查 |
@@ -4005,17 +4006,15 @@ sequenceDiagram
     participant K8s as Kubernetes API
     participant DB as upload_task 表
 
-    Note over TaskReconciler,K8s: === 任务终态时立即清理 ===
+    Note over TaskReconciler,K8s: === 任务完成后 10s 清理 ===
     TaskReconciler->>K8sSvc: deleteJobResources(taskId)
-    K8sSvc->>K8s: DELETE Secret
+    K8sSvc->>K8s: DELETE Job + Pod
     K8s-->>K8sSvc: 200 OK
     K8sSvc->>K8s: DELETE ConfigMap
     K8s-->>K8sSvc: 200 OK
+    K8sSvc->>K8s: DELETE Secret
+    K8s-->>K8sSvc: 200 OK
     K8sSvc-->>TaskReconciler: success
-
-    Note over TaskReconciler,K8s: === 24h 后自动清理 ===
-    K8s->>K8s: ttlSecondsAfterFinished 到期
-    K8s->>K8s: 自动删除 Job + Pod
 ```
 
 #### 6.8.3 清理失败处理
@@ -4255,7 +4254,7 @@ if (isNoProgressWarning(task)) {
 |----------|------|------|----------|
 | 第一层 | Informer Resync | 5 分钟 | 全量 Job 状态重新同步 |
 | 第二层 | TaskReconciler 定时对账 | 30 秒 | 所有非终态任务重新查询 Job 状态 |
-| 第三层 | K8s Job ttlSecondsAfterFinished | 24 小时 | Job 自动清理，避免资源泄漏 |
+| 第三层 | TaskReconciler deleteJobResources | 完成后 10s | Job + ConfigMap + Secret 清除 |
 
 **处理策略**:
 - TaskReconciler 每次扫描都调用 `getJobStatus()` 查询最新状态

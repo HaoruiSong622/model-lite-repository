@@ -32,7 +32,7 @@ public class Fabric8K8sJobService implements K8sJobService {
     private static final String CONTAINER_NAME = "file-copier";
     private static final String CONFIG_MAP_NAME_PREFIX = "upload-config-";
     private static final String SECRET_NAME_PREFIX = "upload-secret-";
-    private static final int TTL_SECONDS_AFTER_FINISHED = 86400;
+    private static final int TTL_SECONDS_AFTER_FINISHED = 0;
     private static final String SOURCE_MOUNT_PATH = "/source";
     private static final String TARGET_MOUNT_PATH = "/target";
 
@@ -205,7 +205,6 @@ public class Fabric8K8sJobService implements K8sJobService {
                 .withLabels(labels)
                 .endMetadata()
                 .withNewSpec()
-                .withTtlSecondsAfterFinished(TTL_SECONDS_AFTER_FINISHED)
                 .withNewTemplate()
                 .withNewMetadata()
                 .withLabels(labels)

@@ -24,6 +24,3 @@ data:
         health:
           probes:
             enabled: true
-    task:
-      reconciler:
-        terminal-cleanup-age-ms: 60000

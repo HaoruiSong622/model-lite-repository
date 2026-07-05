@@ -30,7 +30,7 @@ public class TaskReconciler {
     private final TaskEventCallback taskEventCallback;
     private final LeaderElectionService leaderElectionService;
 
-    @Value("${task.reconciler.terminal-cleanup-age-ms:86400000}")
+    @Value("${task.reconciler.terminal-cleanup-age-ms:10000}")
     private long terminalCleanupAgeMs;
     private static final List<String> DEFAULT_ALLOWED_SUFFIXES = Arrays.asList(
             ".bin", ".json", ".safetensors", ".model", ".pt", ".pth", ".onnx", ".gguf",
